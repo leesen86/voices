@@ -139,11 +139,72 @@ def _resolve_model_id(cli_model: str) -> str:
     return model_id
 
 
+_VOXCPM_SDPA_MASK_PATCHED: list[bool] = [False]
+
+
+def _patch_voxcpm_minicpm_attention_sdpa_mask() -> None:
+    """修复 PyTorch 2.11+ CPU：`scaled_dot_product_attention(..., enable_gqa=True)` 与一维 `attn_mask` 会触发 IndexError。
+
+    将因果 mask 展成 ``(1, 1, 1, seq)`` 后 SDPA 可正常广播（与 voxcpm MiniCPMAttention.forward_step 逻辑一致）。
+    """
+    if _VOXCPM_SDPA_MASK_PATCHED[0]:
+        return
+
+    import torch
+    from voxcpm.modules.minicpm4 import model as _minicpm_model
+
+    def forward_step(self, hidden_states, position_emb, position_id, kv_cache):
+        bsz, _ = hidden_states.size()
+
+        query_states = self.q_proj(hidden_states)
+        key_states = self.k_proj(hidden_states)
+        value_states = self.v_proj(hidden_states)
+
+        query_states = query_states.view(bsz, 1, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+        value_states = value_states.view(bsz, 1, self.num_key_value_heads, self.head_dim).transpose(1, 2)
+
+        if position_emb is not None:
+            cos, sin = position_emb
+            query_states, key_states = _minicpm_model.apply_rotary_pos_emb(query_states, key_states, cos, sin)
+
+        key_cache, value_cache = kv_cache
+
+        key_cache[:, :, position_id, :] = key_states
+        value_cache[:, :, position_id, :] = value_states
+
+        attn_mask_1d = torch.arange(key_cache.size(2), device=key_cache.device) <= position_id
+        attn_mask = attn_mask_1d.view(1, 1, 1, -1)
+
+        query_states = query_states.contiguous()
+        key_cache = key_cache.contiguous()
+        value_cache = value_cache.contiguous()
+        attn_output = torch.nn.functional.scaled_dot_product_attention(
+            query_states,
+            key_cache,
+            value_cache,
+            attn_mask=attn_mask,
+            enable_gqa=True,
+        )
+
+        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.reshape(bsz, self.num_heads * self.head_dim)
+        attn_output = self.o_proj(attn_output)
+
+        return attn_output
+
+    _minicpm_model.MiniCPMAttention.forward_step = forward_step
+    _VOXCPM_SDPA_MASK_PATCHED[0] = True
+
+
 def create_app():
     _check_torch_numpy_bridge()
 
+    _patch_voxcpm_minicpm_attention_sdpa_mask()
+
     import numpy as np
     import soundfile as sf
+    import torch
     from fastapi import Body, FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, Response
@@ -151,8 +212,25 @@ def create_app():
 
     model_id = _resolve_model_id(os.environ.get("VOXCPM_MODEL", "openbmb/VoxCPM2"))
     load_denoiser = os.environ.get("VOXCPM_LOAD_DENOISER", "").lower() in ("1", "true", "yes")
+    prefer_device = "cuda" if torch.cuda.is_available() else "cpu"
+    if prefer_device == "cuda":
+        print("[api] 检测到 CUDA，优先使用 GPU 推理", flush=True)
+    else:
+        print("[api] 未检测到 CUDA，使用 CPU 推理", flush=True)
     print(f"[api] 加载模型: {model_id} …", flush=True)
     model = VoxCPM.from_pretrained(model_id, load_denoiser=load_denoiser)
+    if hasattr(model, "to"):
+        try:
+            model = model.to(prefer_device)
+        except Exception as e:
+            if prefer_device != "cpu":
+                print(f"[api] 模型切到 GPU 失败，回退 CPU：{type(e).__name__}: {e}", flush=True)
+                try:
+                    model = model.to("cpu")
+                except Exception as e2:
+                    print(f"[api] 模型切到 CPU 也失败：{type(e2).__name__}: {e2}", flush=True)
+            else:
+                print(f"[api] 模型切到 CPU 失败：{type(e).__name__}: {e}", flush=True)
     sr = int(model.tts_model.sample_rate)
     _cd = _tts_cache_dir()
     print(f"[api] 就绪，采样率 {sr} Hz", flush=True)
