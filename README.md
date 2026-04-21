@@ -46,7 +46,7 @@
 ```powershell
 # 1) 下载模型
 pip install -U "huggingface_hub[cli]"
-huggingface-cli download openbmb/VoxCPM2 --local-dir ./model
+hf download openbmb/VoxCPM2 --local-dir ./model
 
 # 2) 安装依赖
 pip install -r requirements.txt
