@@ -1,13 +1,48 @@
-# VoxCPM2 配音工作台 · 一体化服务
+# VoxCPM2 对话配音工作台
 
-> 单进程把 **模型推理 API** + **前端页面** + **本机文件定位** 全挂在一个 FastAPI 上，默认监听 `http://127.0.0.1:8770/`。
+> 一体化本地服务：打开网页即可完成角色管理、台词生成、时间线编排、试听和导出，无需再拆分多进程。
 
 ---
 
-## 快速开始
+---
+
+## 这个工具能做什么
+
+- **角色管理**：维护多个角色与参考音频（本地 wav），每句台词可独立绑定角色。  
+- **台词批量生成**：支持逐句生成，也支持批量生成，参数可按句微调。  
+- **时间线编排**：可视化拖动/拼接片段，快速调整句子先后、间隔和节奏。  
+- **背景音混合**：导入背景音后与人声统一试听，适合做完整对话演示。  
+- **本地文件友好**：可按文件名自动解析本机路径，减少手工复制路径。  
+- **缓存加速**：命中后秒回，重复调试同一台词时非常省时间。  
+- **导出结果**：可导出整段 wav，便于后续剪辑、封装或直接投放。  
+
+---
 
 
-## 下载
+## 典型使用流程
+
+1. 添加角色，给每个角色绑定参考音色 wav。  
+2. 在台词区录入对白，选择角色并调整 `cfg` / `steps`。  
+3. 先单句试听，再批量生成。  
+4. 在时间线里微调节奏与叠放关系。  
+5. 合成并导出最终音频。  
+
+---
+
+## 功能截图
+
+
+### 功能演示截图
+
+![功能演示1](web/ScreenShot_2026-04-21_182533_515.png)
+![功能演示2](web/ScreenShot_2026-04-21_182557_228.png)
+
+
+
+---
+
+## 安装与启动
+
 ```powershell
 # 1) 下载模型
 pip install -U "huggingface_hub[cli]"
@@ -24,204 +59,54 @@ python server.py
 #    → 自动呈现 static/webui.html
 ```
 
-看到类似这样就表示就绪：
 
-```
-[api] 加载模型: ...\model …
-[api] 就绪，采样率 16000 Hz
-[api] TTS 缓存目录（绝对路径）: D:\AI\VoxCPM2\tts_cache
-[api] 文件名: <md5(角色路径+台词+cfg+步数)>.wav；环境变量 VOXCPM_TTS_CACHE_DIR 可改为例如 D:\\cache 或 /tmp
-[server] VoxCPM2 一体化服务启动: http://127.0.0.1:8770/
-[server] 前端页面: http://127.0.0.1:8770/webui.html
-```
+## 核心特性说明
 
----
+### 缓存机制（重点）
 
-## 项目结构
+- 缓存文件位于 `tts_cache/`。  
+- 文件名规则：`md5(角色路径 + 台词 + cfg + 步数).wav`。  
+- 同一参考音频路径、同一文本和参数，会直接命中缓存。  
+- 更换参考音频路径或参数，会自动重新生成，避免串音。  
 
-```
-VoxCPM2/
-├─ server.py           ← 入口：FastAPI 一体化服务（API + 静态 + /resolve_name）
-├─ api.py              ← TTS 路由（/api/tts/*、/api/workbench/*、/api/health）
-├─ requirements.txt    ← Python 依赖
-├─ static/             ← 被 server.py 的 StaticFiles 挂载
-│  └─ webui.html       ← 前端工作台（打开 "/" 默认返回此页）
-├─ model/              ← 本地 VoxCPM2 模型目录（含 config.json 时自动走本地）
-└─ tts_cache/          ← 磁盘缓存，文件名 = <md5>.wav
-```
+### 一体化服务
 
----
+- `server.py` 同时承担：静态页面托管 + 生成服务 + 文件名解析。  
+- 默认地址：`http://127.0.0.1:8770/`。  
+- 适合本地创作、演示和小团队内网协作。  
 
-## 环境变量
 
-| 变量 | 默认 | 说明 |
-|---|---|---|
-| `VOXCPM_PORT` | `8770` | 监听端口 |
-| `VOXCPM_HOST` | `127.0.0.1` | 监听地址；改 `0.0.0.0` 后同局域网可访问 |
-| `VOXCPM_RELOAD` | 空 | `1`/`true`/`yes` 时开启 uvicorn `--reload`（改代码即重载，但**会反复加载模型**，慎用） |
-| `VOXCPM_MODEL` | `openbmb/VoxCPM2` | HF 仓库 ID 或本地目录。默认若 `./model/config.json` 存在，会自动切到本地目录 |
-| `VOXCPM_LOAD_DENOISER` | 空 | `1`/`true`/`yes` 时一并加载 denoiser |
-| `VOXCPM_TTS_CACHE_DIR` | `./tts_cache` | 缓存目录。例如换到固态盘 `D:\cache` |
-| `VOXCPM_AUDIO_SEARCH_DIRS` | 空 | 供 `/resolve_name` 使用的额外搜索目录；Windows 用 `;` 分隔，*nix 用 `:` |
-
-PowerShell 设置示例：
-
-```powershell
-$env:VOXCPM_PORT = "9000"
-$env:VOXCPM_TTS_CACHE_DIR = "D:\cache\voxcpm"
-$env:VOXCPM_AUDIO_SEARCH_DIRS = "D:\voice_refs;E:\bgm"
-python server.py
-```
-
----
-
-## API 一览
-
-同源调用（浏览器打开 `http://127.0.0.1:8770/webui.html` 时所有 `fetch` 全走同源，无 CORS 问题），也支持 `Access-Control-Allow-Origin: *` 跨源。
-
-### `GET /api/health`
-
-健康检查：
-
-```json
-{ "ok": true, "sample_rate": 16000, "model": "...\\model" }
-```
-
-### `POST /api/tts/render` —— 合成单句
-
-请求体：
-
-```json
-{
-  "text": "(语气平缓)这是一个示例。",
-  "reference_wav_path": "C:\\Users\\you\\Downloads\\spk.wav",
-  "role_name": "旁白",
-  "cfg_value": 2.0,
-  "inference_timesteps": 10
-}
-```
-
-- 响应：`Content-Type: audio/wav`，直接返回 WAV 字节。
-- 响应头：
-  - `X-Sample-Rate`：采样率。
-  - `X-Tts-Cache`：`hit` / `miss`。
-  - `X-Tts-Cache-Digest`：缓存文件 md5（= 磁盘上 `tts_cache/<digest>.wav`）。
-- **缓存 key**：`md5(规范化参考路径 + 台词 + cfg + 步数)`。
-  - 路径规范化：`expanduser + resolve`，Windows 下额外统一为小写 + 反斜杠。
-  - `role_name` **不**参与 md5，仅用于日志/展示。
-  - 换参考音频路径 = 自动 miss 重算，避免错用旧缓存。
-
-### `POST /api/tts/cache_digests` —— 批量预测 digest
-
-用于导出「台词清单 → 文件名」映射，不触发推理。
-
-```json
-{
-  "items": [
-    { "reference_wav_path": "C:\\spk.wav", "text": "你好", "cfg_value": 2.0, "inference_timesteps": 10 }
-  ]
-}
-```
-
-响应：
-
-```json
-{ "digests": [ { "digest": "abc...32位", "relativePath": "tts_cache/abc...32位.wav" } ] }
-```
-
-### `GET /api/tts/cache_wav/{digest}`
-
-按 md5 取已缓存的整段 WAV；未命中返回 404（说明该台词尚未生成过）。`digest` 必须是 32 位十六进制。
-
-### `POST /api/workbench/read_wav`
-
-把本机 `.wav` 原样回传，给前端背景音轨解码用：
-
-```json
-{ "path": "C:\\music\\bgm.wav" }
-```
-
-### `POST /resolve_name`
-
-按**文件名**在常用目录中递归搜索本机绝对路径（前端「选择音轨」后用它把文件名还原成完整路径）：
-
-```json
-{ "filename": "spk_1765183119.wav", "limit": 20 }
-```
-
-响应：
-
-```json
-{ "filename": "spk_1765183119.wav", "found": ["C:\\Users\\you\\Downloads\\spk_1765183119.wav"] }
-```
-
-默认搜索目录（按顺序）：
-
-- `~/Downloads`、`~/Desktop`、`~/Documents`、`~/Music`、`~/Videos`
-- 项目根目录的父目录
-- 项目根目录
-- 项目根目录下的 `assets/`
-- `VOXCPM_AUDIO_SEARCH_DIRS` 追加目录
-
-`filename` 不允许含 `/` 或 `\`（只接受纯文件名，防路径注入）。
-
----
-
-## 缓存目录 `tts_cache/`
-
-- 每条成功生成的台词都会落盘：`tts_cache/<md5>.wav`，下次相同参数（路径 / 台词 / cfg / 步数）秒出。
-- 想重新生成某一条：删掉对应的 `<md5>.wav` 即可；或清空整个目录：
-
-```powershell
-Remove-Item -Path .\tts_cache\*.wav -Force
-```
-
----
-
-## 前端页面要点
-
-- 入口：`static/webui.html`，由 `server.py` 通过 `StaticFiles` 挂载。
-- 改完 HTML 直接**刷新浏览器**即可，不必重启 Python 进程（静态服务对 `Cache-Control: no-store` 友好）。
-- 页面里 `API` 常量默认 `http://127.0.0.1:8770`，也可以用 `?api=http://...` 查询参数显式指定（方便把页面托管在其他地方、API 跑在另一台机器的场景）。
-
----
 
 ## 常见问题
 
-### 启动时报 `RuntimeError: Numpy is not available` / `_multiarray_umath`
+### 启动后打不开页面
 
-典型 Windows DLL 加载顺序问题，代码里已经在模型加载前做了一次 `torch.zeros(1).numpy()` 探测。修复：
+- 确认终端中出现 `VoxCPM2 一体化服务启动`。  
+- 用浏览器访问 `http://127.0.0.1:8770/`。  
+- 若端口占用，改端口后重启：  
+
+```powershell
+$env:VOXCPM_PORT = "9001"
+python server.py
+```
+
+### Windows 下 NumPy / Torch 报错
+
+可尝试：
 
 ```powershell
 pip uninstall numpy -y
 conda install -y numpy -c conda-forge
-# 仍失败则装/修 Microsoft Visual C++ Redistributable
-```
-
-### `pip install torch` 装成了 CPU 版，想用 CUDA
-
-先按官方命令装 torch，再装其它依赖：
-
-```powershell
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt
-```
-
-### 端口被占
-
-```powershell
-$env:VOXCPM_PORT = "9001"; python server.py
-```
-
-### 局域网其它机器访问
-
-```powershell
-$env:VOXCPM_HOST = "0.0.0.0"; python server.py
-# 然后用本机 IPv4 地址 + 端口访问；注意防火墙放行
 ```
 
 ---
 
-## 停止
+## 如果这个项目对你有帮助
 
-终端里 `Ctrl+C`。
+如果这个项目对你有帮助，欢迎支持一下。  
+感谢你的认可与鼓励。
+
+
+![wechat](web/20260421182918_376_18.png)
+
+![alipay](web/20260421182917_375_18.jpg)
