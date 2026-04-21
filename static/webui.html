@@ -1,0 +1,3566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>对话配音工作台 · VoxCPM2</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3f5f9;
+      --panel: #ffffff;
+      --border: #c9d1e0;
+      --text: #1a2233;
+      --muted: #5a6578;
+      --accent: #2563eb;
+      --track-h: 72px;
+      --ruler-h: 28px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); background: var(--panel);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
+    header .sub { font-size: 0.8rem; color: var(--muted); }
+    header code { background: #eef2f8; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
+    main { flex: 1; display: flex; flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem 1rem; max-width: 120rem; margin: 0 auto; width: 100%; }
+    section.panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    /* 可折叠面板（背景音轨）：默认收起，样式与 section.panel 接近 */
+    details.panel-collapsible {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    details.panel-collapsible > summary.panel-collapsible-summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.65rem 1rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    details.panel-collapsible > summary.panel-collapsible-summary::-webkit-details-marker {
+      display: none;
+    }
+    details.panel-collapsible > summary.panel-collapsible-summary::after {
+      content: "▶";
+      font-size: 0.65rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    details.panel-collapsible[open] > summary.panel-collapsible-summary::after {
+      transform: rotate(90deg);
+    }
+    details.panel-collapsible > summary.panel-collapsible-summary .panel-collapsible-title {
+      flex-shrink: 0;
+    }
+    details.panel-collapsible .panel-collapsible-hint {
+      font-weight: 400;
+      font-size: 0.78rem;
+      color: var(--muted);
+      flex: 1;
+      min-width: 0;
+      text-align: right;
+      margin-left: 0.75rem;
+    }
+    details.panel-collapsible > summary.panel-collapsible-summary {
+      list-style: none;
+    }
+    details.panel-collapsible .panel-collapsible-body {
+      padding: 0 1rem 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+    details.panel-collapsible .panel-collapsible-body > .hint:first-child {
+      margin-top: 0.45rem;
+    }
+    section.panel h2 { margin: 0; font-size: 0.95rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { border: 1px solid var(--border); padding: 0.35rem 0.5rem; text-align: left; }
+    th { background: #eef2f8; color: var(--muted); font-weight: 500; }
+    input[type="text"], input[type="number"], textarea, select {
+      width: 100%; max-width: 100%; padding: 0.35rem 0.45rem; border-radius: 4px;
+      border: 1px solid var(--border); background: #fff; color: var(--text);
+    }
+    #bgTable input[type="text"],
+    #charTable input[type="text"] {
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .wb-op-cell { position: relative; white-space: nowrap; }
+    .wb-file-input {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .wb-file-label {
+      display: inline-block;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      user-select: none;
+    }
+    .wb-file-label:hover { background: #eef2f8; }
+    textarea { min-height: 4.5rem; resize: vertical; }
+    button {
+      padding: 0.35rem 0.65rem; border-radius: 6px; border: 1px solid var(--border);
+      background: #fff; color: var(--text); cursor: pointer; font-size: 0.85rem;
+    }
+    button.primary { background: var(--accent); border-color: #1d4ed8; color: #fff; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* 工具条语义色（底部栏与台词表操作列共用） */
+    .toolbar-btn.toolbar-gen {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      color: #065f46;
+    }
+    .toolbar-btn.toolbar-gen:hover:not(:disabled) {
+      background: #d1fae5;
+    }
+    .toolbar-btn.toolbar-gen .tb-ico {
+      color: #059669;
+    }
+    .toolbar-btn.toolbar-batch-add {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1e3a8a;
+    }
+    .toolbar-btn.toolbar-batch-add:hover:not(:disabled) {
+      background: #dbeafe;
+    }
+    .toolbar-btn.toolbar-batch-add .tb-ico {
+      color: #2563eb;
+    }
+    .toolbar-btn.toolbar-addline {
+      background: #fffbeb;
+      border-color: #fcd34d;
+      color: #92400e;
+    }
+    .toolbar-btn.toolbar-addline:hover:not(:disabled) {
+      background: #fef3c7;
+    }
+    .toolbar-btn.toolbar-addline .tb-ico {
+      color: #d97706;
+    }
+    /* 行内「播放」：中性灰，与蓝/绿/琥珀区分 */
+    .toolbar-btn.toolbar-row-play {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #1e293b;
+    }
+    .toolbar-btn.toolbar-row-play:hover:not(:disabled) {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    /* 行内「删除」：浅红底，与「添加」蓝系区分 */
+    .toolbar-btn.toolbar-row-del {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+    .toolbar-btn.toolbar-row-del:hover:not(:disabled) {
+      background: #fee2e2;
+      border-color: #fca5a5;
+    }
+    .toolbar-btn.toolbar-row-del .tb-ico {
+      color: #dc2626;
+    }
+    /* 台词区底部工具栏 */
+    .script-toolbar .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.32rem;
+    }
+    .script-toolbar .toolbar-btn .tb-ico {
+      font-size: 0.95rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    /* RAW 区按钮 */
+    #linesRawView .raw-toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    #linesRawView .raw-toolbar-btn .tb-ico {
+      font-size: 0.88rem;
+      line-height: 1;
+    }
+    #linesRawView .raw-toolbar-btn.raw-apply {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      color: #065f46;
+    }
+    #linesRawView .raw-toolbar-btn.raw-apply .tb-ico {
+      color: #059669;
+    }
+    #linesRawView .raw-toolbar-btn.raw-format {
+      background: #f5f3ff;
+      border-color: #c4b5fd;
+      color: #5b21b6;
+    }
+    #linesRawView .raw-toolbar-btn.raw-format .tb-ico {
+      color: #7c3aed;
+    }
+    #linesRawView .raw-toolbar-btn.raw-reload {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    #linesRawView .raw-toolbar-btn.raw-reload .tb-ico {
+      color: #64748b;
+    }
+    /* RAW / 表格 切换（标题栏） */
+    button.raw-view-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #faf5ff;
+      border-color: #d8b4fe;
+      color: #6b21a8;
+    }
+    button.raw-view-toggle:hover:not(:disabled) {
+      background: #f3e8ff;
+      border-color: #c084fc;
+    }
+    button.raw-view-toggle .tb-ico {
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      color: #7c3aed;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; margin-top: 0.35rem; }
+    .row > div { flex: 1 1 10rem; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; line-height: 1.45; }
+    /* 紧跟在表格后的「添加」按钮，与表体留出间距 */
+    .panel-table-below { margin-top: 0.65rem; }
+    /* 一、角色表 / 其它音轨表：操作与表下「添加」按钮用语义色（与台词区工具条一致） */
+    #charTable + button.toolbar-btn,
+    #charTable .wb-op-cell .toolbar-btn,
+    #bgTable + button.toolbar-btn,
+    #bgTable .wb-op-cell .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.32rem;
+    }
+    #charTable .wb-op-cell .toolbar-btn .tb-ico,
+    #bgTable .wb-op-cell .toolbar-btn .tb-ico {
+      font-size: 0.95rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .sec2-head {
+      display: flex; flex-wrap: nowrap; align-items: center; gap: 0.75rem 1.25rem;
+      margin-bottom: 0.35rem;
+    }
+    .sec2-head h2 { flex-shrink: 0; margin: 0; }
+    /* 标题与右侧操作按钮同一行 */
+    .sec2-head.sec2-head--between {
+      justify-content: space-between;
+      width: 100%;
+      flex-wrap: wrap;
+      row-gap: 0.35rem;
+      align-items: center;
+    }
+    .sec2-head.sec2-head--between > button {
+      flex-shrink: 0;
+      align-self: center;
+    }
+    /* 台词表：固定布局，台词列占剩余宽度，参数/操作列固定宽度 */
+    #scriptTable.script-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+    .script-section-hint {
+      margin-top: 0.35rem;
+      margin-bottom: 0.4rem;
+    }
+    .script-toolbar {
+      margin-top: 0.55rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .sec2-inline {
+      display: flex; flex-wrap: nowrap; align-items: center; gap: 0.75rem;
+      flex: 1; min-width: 0; overflow-x: auto;
+    }
+    .sec2-inline label {
+      display: flex; align-items: center; gap: 0.35rem; white-space: nowrap; font-size: 0.82rem; color: var(--muted);
+    }
+    .sec2-inline input[type="number"] { width: 4.25rem; }
+    .script-wrap { overflow-x: auto; margin-top: 0.35rem; }
+    .script-table .col-actions { white-space: nowrap; }
+    .script-table .col-actions button { margin-right: 0.25rem; margin-top: 0; margin-bottom: 0; }
+    .script-table .col-sel { width: 2.75rem; text-align: center; vertical-align: middle; }
+    .script-table .col-sel label { cursor: pointer; user-select: none; font-size: 0.7rem; color: var(--muted); }
+    #scriptTable .col-char { width: 10rem; min-width: 6.5rem; }
+    #scriptTable .col-text { min-width: 0; }
+    #scriptTable .col-text input {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #scriptTable .col-cfg { width: 4.35rem; min-width: 4rem; }
+    #scriptTable .col-steps { width: 4.6rem; min-width: 4.25rem; }
+    #scriptTable .col-cfg input,
+    #scriptTable .col-steps input { width: 100%; max-width: 100%; box-sizing: border-box; }
+    #scriptTable .col-actions { width:20.25rem; min-width: 18rem; }
+    #scriptTable th.col-cfg,
+    #scriptTable th.col-steps {
+      font-size: 0.76rem;
+      line-height: 1.25;
+      white-space: normal;
+      word-break: keep-all;
+    }
+    .script-table .col-cache-badge { width: 2.85rem; text-align: center; vertical-align: middle; }
+    /* 台词表操作列：顺序 生成 / 播放 / 添加 / 删除；配色见各 .toolbar-* */
+    #scriptTable .col-actions .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.32rem;
+      padding: 0.28rem 0.45rem;
+      position: relative;
+    }
+    #scriptTable .col-actions .toolbar-btn:nth-of-type(1) {
+      min-width: 4.5rem;
+    }
+    #scriptTable .col-actions .toolbar-btn:nth-of-type(2) {
+      min-width: 4.25rem;
+    }
+    #scriptTable .col-actions .toolbar-btn .row-tts-cache-badge {
+      min-width: 1.05rem;
+      min-height: 1.05rem;
+      font-size: 0.68rem;
+      flex-shrink: 0;
+    }
+    #scriptTable .col-actions .toolbar-btn .row-gen-lab,
+    #scriptTable .col-actions .toolbar-btn .row-play-lab,
+    #scriptTable .col-actions .toolbar-btn .tb-lab {
+      font-size: 0.78rem;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    #scriptTable .col-actions .toolbar-btn .tb-ico {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      line-height: 1;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .row-tts-cache-badge.is-gen-loading {
+      color: var(--accent);
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid #93c5fd;
+      animation: rowGenSpin 0.9s linear infinite;
+    }
+    @keyframes rowGenSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .row-play-ico {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.05rem;
+      min-height: 1.05rem;
+      font-size: 0.72rem;
+      line-height: 1;
+      font-weight: 700;
+      user-select: none;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .row-play-ico.is-play-idle {
+      color: var(--muted);
+      background: transparent;
+      border: 1px dashed #cbd5e1;
+      font-weight: 500;
+    }
+    .row-play-ico.is-play-ready {
+      color: #fff;
+      background: #64748b;
+      border: 1px solid #475569;
+      font-size: 0.62rem;
+    }
+    .row-play-ico.is-play-active {
+      color: #fff;
+      background: #2563eb;
+      border: 1px solid #1d4ed8;
+      animation: rowPlayPulse 0.9s ease-in-out infinite;
+    }
+    @keyframes rowPlayPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.92); opacity: 0.88; }
+    }
+    .row-tts-cache-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.35rem; min-height: 1.35rem; text-align: center; font-size: 1.05rem; line-height: 1;
+      font-weight: 700; user-select: none; border-radius: 50%;
+    }
+    .row-tts-cache-badge.is-fresh {
+      color: #fff; background: #16a34a;
+      border: 1px solid #15803d;
+    }
+    .row-tts-cache-badge.is-hit {
+      color: #fff; background: #2563eb;
+      border: 1px solid #1d4ed8;
+    }
+    .row-tts-cache-badge.is-error {
+      color: #fff; background: #dc2626;
+      border: 1px solid #b91c1c;
+    }
+    .row-tts-cache-badge.is-none { color: var(--muted); background: transparent; border: 1px dashed #cbd5e1; font-size: 0.75rem; }
+    #timelineOuter {
+      flex: 1; min-height: 220px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    #timelineScroll {
+      overflow-x: auto; overflow-y: hidden; flex: 1; border: 1px solid var(--border); border-radius: 6px;
+      background: #f8fafc;
+    }
+    #timelineScroll:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.35);
+      outline-offset: -1px;
+    }
+    #timelineInner {
+      position: relative;
+      min-height: calc(var(--ruler-h) + var(--track-h) * var(--tracks, 2));
+      --tl-label-w: 120px;
+      display: grid;
+      grid-template-columns: var(--tl-label-w) minmax(200px, max-content);
+      align-content: start;
+    }
+    .timeline-corner {
+      height: var(--ruler-h); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+      background: #f1f5f9; flex-shrink: 0;
+    }
+    .timeline-ruler-host {
+      height: var(--ruler-h); position: relative; border-bottom: 1px solid var(--border);
+    }
+    /* 黄线：起播/编辑位置（playhead），可拖动 */
+    #playheadGlobal {
+      position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px;
+      z-index: 30; cursor: col-resize; touch-action: none; pointer-events: auto;
+      background: transparent;
+    }
+    #playheadGlobal .ph-line {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+      background: #eab308;
+      pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+    /* 绿线：混音播放时的当前时间 */
+    #playLineGlobal {
+      position: absolute; top: 0; bottom: 0; width: 12px; margin-left: -6px;
+      z-index: 28; pointer-events: none; visibility: hidden;
+      background: transparent;
+    }
+    #playLineGlobal .ph-line-play {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+      background: #16a34a;
+      pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+    }
+    /* 红线：结束位（playEndSec），可拖动，播放/导出到此为止 */
+    #playEndGlobal {
+      position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px;
+      z-index: 29; cursor: col-resize; touch-action: none; pointer-events: auto;
+      background: transparent;
+    }
+    #playEndGlobal .ph-line-end {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+      background: #dc2626;
+      pointer-events: none;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+    #ruler {
+      background: linear-gradient(180deg, #eef2f8, #e2e8f0);
+    }
+    .ruler-tick {
+      position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(15, 23, 42, 0.12);
+      font-size: 10px; color: var(--muted); padding-left: 2px;
+    }
+    .track-label {
+      width: var(--tl-label-w); min-width: var(--tl-label-w); padding: 0.35rem; font-size: 0.78rem; color: var(--muted);
+      border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); background: #f1f5f9;
+      display: flex; align-items: center; height: var(--track-h); box-sizing: border-box;
+    }
+    .track-lane {
+      position: relative; height: var(--track-h); border-bottom: 1px solid var(--border);
+      background-color: #fff;
+      background-image: repeating-linear-gradient(
+        90deg, transparent, transparent 79px, rgba(15, 23, 42, 0.04) 79px, rgba(15, 23, 42, 0.04) 80px
+      );
+    }
+    .clip {
+      position: absolute; top: 4px; bottom: 4px; border-radius: 4px; cursor: grab;
+      border: 2px solid rgba(37, 99, 235, 0.35); overflow: hidden; min-width: 36px;
+      background: rgba(147, 197, 253, 0.45); user-select: none; touch-action: none; z-index: 5;
+    }
+    .clip:active { cursor: grabbing; }
+    .clip.selected { border-color: #1d4ed8; box-shadow: 0 0 0 1px #1d4ed8; }
+    .clip-handle {
+      position: absolute; top: 0; bottom: 0; width: 10px; z-index: 9;
+      background: rgba(37, 99, 235, 0.4); cursor: ew-resize; touch-action: none;
+    }
+    .clip-handle-l { left: 0; border-radius: 2px 0 0 2px; }
+    .clip-handle-r { right: 0; border-radius: 0 2px 2px 0; }
+    .clip-handle:hover { background: rgba(29, 78, 216, 0.75); }
+    .clip canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+    .clip-title {
+      position: absolute; left: 4px; top: 2px; right: 4px; font-size: 10px; color: #0f172a;
+      text-shadow: 0 0 2px #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+    }
+    #transport {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.35rem;
+    }
+    #status { font-size: 0.8rem; color: var(--muted); flex: 1; min-width: 10rem; }
+    #clipTrimBar {
+      margin: 0.4rem 0 0.5rem;
+      padding: 0.45rem 0.55rem;
+      background: #eef2f8;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .clip-trim-bar-row {
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.35rem;
+    }
+    .clip-trim-bar-head { flex: 1; min-width: 0; font-size: 0.78rem; color: var(--muted); margin: 0; }
+    .clip-trim-preview-btn { flex-shrink: 0; white-space: nowrap; }
+    .clip-trim-rate-wrap {
+      display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0;
+      font-size: 0.78rem; color: var(--muted); white-space: nowrap;
+    }
+    .clip-trim-rate-wrap select {
+      width: auto; min-width: 4.25rem; max-width: 6rem; font-size: 0.8rem;
+      padding: 0.2rem 0.35rem; border-radius: 4px; border: 1px solid var(--border);
+    }
+    .clip-trim-bar-track {
+      position: relative;
+      height: 24px;
+      background: #cbd5e1;
+      border-radius: 5px;
+      border: 1px solid #94a3b8;
+      touch-action: none;
+    }
+    .clip-trim-bar-line {
+      position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px;
+      background: #0f172a;
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .clip-trim-bar-fill {
+      position: absolute; top: 3px; bottom: 3px;
+      background: rgba(186, 230, 253, 0.92);
+      border-radius: 4px;
+      pointer-events: none;
+      border: 1px solid rgba(37, 99, 235, 0.5);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+    .clip-trim-bar-thumb {
+      position: absolute; top: 50%; width: 11px; height: 20px; margin-top: -10px;
+      background: #475569;
+      border-radius: 3px;
+      border: 1px solid #1e293b;
+      cursor: ew-resize;
+      z-index: 2;
+      transform: translateX(-50%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    }
+    .clip-trim-bar-thumb:hover { background: #334155; }
+    .clip-trim-bar-thumb:active { background: #0f172a; }
+    .clip-trim-bar-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+    .clip-audio-row {
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;
+      margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px dashed var(--border);
+      font-size: 0.78rem; color: var(--muted);
+    }
+    .clip-audio-row label {
+      display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+    }
+    .clip-audio-row input[type="number"] {
+      width: 4.25rem; font-size: 0.8rem; padding: 0.2rem 0.3rem;
+      border-radius: 4px; border: 1px solid var(--border);
+    }
+    .clip-audio-row input[type="range"] {
+      width: 7.5rem;
+    }
+    .clip-audio-row select {
+      width: auto; min-width: 4.25rem; max-width: 6rem; font-size: 0.8rem;
+      padding: 0.2rem 0.35rem; border-radius: 4px; border: 1px solid var(--border);
+    }
+    .clip-audio-row .hint {
+      flex: 1; min-width: 12rem; text-align: right; font-size: 0.72rem;
+    }
+    .clip-bg {
+      cursor: default;
+      border-color: #15803d;
+      background: rgba(22, 101, 52, 0.22);
+    }
+    .clip-bg .clip-title { color: #bbf7d0; }
+    .bg-lane-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 0.35rem 0.5rem;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>对话配音工作台</h1>
+      <!-- <div class="sub">非流式整段生成 · 多角色参考克隆 · 时间线拖拽 · 浏览器内混音导出单声道 WAV</div> -->
+    </div>
+    <div class="sub">
+     
+      非流式整段生成 · 多角色参考克隆 · 时间线拖拽 · 浏览器内混音导出单声道 WAV ,  如果对你有用就支持一下我吧
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>一、角色与参考音色</h2>
+      <p class="hint">每行一个角色；参考 wav 须为<strong>完整路径</strong>，生成时作为 <code>reference_wav_path</code>。</p>
+      <table id="charTable">
+        <thead><tr><th>角色名</th><th>参考 wav 路径（生成必填）</th><th>操作</th></tr></thead>
+        <tbody id="charBody"></tbody>
+      </table>
+      <button type="button" id="btnAddChar" class="panel-table-below toolbar-btn toolbar-addline">
+        <span class="tb-ico" aria-hidden="true">＋</span><span class="tb-lab">添加角色</span>
+      </button>
+    </section>
+
+    <section class="panel">
+      <div class="sec2-head sec2-head--between">
+        <h2>二、台词与生成</h2>
+        <button type="button" id="btnToggleLinesRaw" class="raw-view-toggle" aria-pressed="false" title="在「表格视图」与「RAW(JSON)」之间切换 — 仅作用于本区台词表">
+          <span class="tb-ico" aria-hidden="true">{ }</span><span id="btnToggleLinesRawLab" class="tb-lab">切换到 RAW(JSON) 视图</span>
+        </button>
+      </div>
+      <p class="hint script-section-hint">
+        <strong>引导值</strong>：整段 TTS 的条件引导强度，常用约 2，可按听感微调。<strong>推理步数</strong>：扩散步数，本页 1–60，越大通常略稳、更慢。
+        
+      </p>
+      <div id="linesTableView">
+      <div class="script-wrap">
+        <table id="scriptTable" class="script-table">
+          <thead>
+            <tr>
+              <th class="col-sel">
+                <label title="勾选/取消所有行参与批量生成">
+                  <input type="checkbox" id="scriptSelectAll" />
+                  <br />全选
+                </label>
+              </th>
+              <th class="col-char">角色</th>
+              <th class="col-text">台词</th>
+              <th
+                class="col-cfg"
+                title="接口 cfg_value：条件引导强度，影响与台词、参考音的贴合程度，常用约 0.5–5（默认 2）"
+              >引导值</th>
+              <th
+                class="col-steps"
+                title="接口 inference_timesteps：扩散推理步数；越大通常略稳、耗时更长。本表限制 1–60"
+              >推理步数</th>
+              <th class="col-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody id="scriptBody"></tbody>
+        </table>
+      </div>
+      <div class="script-toolbar">
+        <button type="button" id="btnBatchGenerate" class="toolbar-btn toolbar-gen">
+          <span class="tb-ico" aria-hidden="true">⚡</span><span class="tb-lab">批量生成</span>
+        </button>
+        <button type="button" id="btnBatchAdd" class="toolbar-btn toolbar-batch-add">
+          <span class="tb-ico" aria-hidden="true">⤵</span><span class="tb-lab">批量添加</span>
+        </button>
+        <button type="button" id="btnAddLine" class="toolbar-btn toolbar-addline">
+          <span class="tb-ico" aria-hidden="true">＋</span><span class="tb-lab">添加一行</span>
+        </button>
+      </div>
+      </div><!-- /#linesTableView -->
+
+      <div id="linesRawView" style="display:none;">
+        <textarea
+          id="linesRawText"
+          spellcheck="false"
+          style="width: 100%; min-height: 22rem; font-family: ui-monospace,Menlo,Consolas,monospace; font-size: 0.8rem; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-subtle); color: var(--text); resize: vertical;"
+        ></textarea>
+        <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+          <button type="button" id="btnApplyLinesRaw" class="raw-toolbar-btn raw-apply">
+            <span class="tb-ico" aria-hidden="true">✓</span><span class="tb-lab">应用 JSON</span>
+          </button>
+          <button type="button" id="btnFormatLinesRaw" class="raw-toolbar-btn raw-format" title="格式化当前 JSON（两空格缩进）">
+            <span class="tb-ico" aria-hidden="true">{}</span><span class="tb-lab">格式化</span>
+          </button>
+          <button type="button" id="btnReloadLinesRaw" class="raw-toolbar-btn raw-reload" title="丢弃编辑，重新从当前表格生成 JSON">
+            <span class="tb-ico" aria-hidden="true">↻</span><span class="tb-lab">从表格重载</span>
+          </button>
+          <span id="linesRawStatus" style="font-size: 0.78rem; color: var(--muted);"></span>
+        </div>
+      </div>
+    </section>
+
+    <details class="panel-collapsible panel-bg-tracks">
+      <summary class="panel-collapsible-summary">
+        <span class="panel-collapsible-title">其它音轨</span>
+        <span class="panel-collapsible-hint">点击展开 · 多条背景素材 · 再「添加到时间线」</span>
+      </summary>
+      <div class="panel-collapsible-body">
+        <p class="hint">可多轨。<strong>备注</strong>为轨名；<strong>文件路径</strong>供读入；<strong>选择音轨</strong>本地解码；<strong>添加到时间线</strong>挂到黄线。</p>
+        <table id="bgTable">
+          <thead>
+            <tr>
+              <th>备注</th>
+              <th>文件路径</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="bgBody"></tbody>
+        </table>
+        <button type="button" id="btnAddBgTrack" class="panel-table-below toolbar-btn toolbar-addline">
+          <span class="tb-ico" aria-hidden="true">＋</span><span class="tb-lab">添加其它音轨</span>
+        </button>
+      </div>
+    </details>
+
+    <section class="panel" id="timelineOuter">
+      <h2>三、时间线（标尺 · 多轨 · 波形块）</h2>
+      <p class="hint">
+     <strong style="color:#dc2626">红竖线</strong>为起播/编辑头可拖；<strong style="color:#16a34a">绿竖线</strong>为混音播放进度（仅播放时出现）。选中时间线音频块后按 <kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除（焦点须在时间线或片段上，若在台词输入框内则先点一下时间线区域）。
+      </p>
+      <div class="row" style="align-items:center; display:none;" aria-hidden="true">
+        <div style="flex:0 0 auto;">
+          <label>缩放 px/秒</label><br />
+          <input type="number" id="pps" value="72" min="24" max="200" step="4" style="width:5rem;" />
+        </div>
+        <div style="flex:0 0 auto;">
+          <label>时间轴长度（秒）</label><br />
+          <input type="number" id="durSec" value="45" min="10" max="600" step="5" style="width:5rem;" />
+        </div>
+        <button type="button" id="btnFit">按片段自动延长轴长</button>
+      </div>
+      <div id="clipTrimBar">
+        <div class="clip-trim-bar-row">
+          <div class="clip-trim-bar-head" id="clipTrimBarTitle">未选中片段</div>
+          <button type="button" id="btnTrimPreview" class="clip-trim-preview-btn" disabled title="先选中时间线上的片段">
+            试听
+          </button>
+          <label class="clip-trim-rate-wrap" style="display:none;" aria-hidden="true" title="全局音速已弃用：请使用每个片段独立的『音速』控件">
+            音速（全局·已弃用）
+            <select id="trimPreviewRate">
+              <option value="0.3">0.3</option>
+              <option value="0.5">0.5</option>
+              <option value="0.7">0.7</option>
+              <option value="0.9">0.9</option>
+              <option value="1" selected>1.0</option>
+              <option value="1.25">1.25</option>
+              <option value="1.5">1.5</option>
+              <option value="2">2.0</option>
+              <option value="3">3.0</option>
+            </select>
+          </label>
+        </div>
+        <div class="clip-trim-bar-track" id="clipTrimBarTrack">
+          <div class="clip-trim-bar-line" aria-hidden="true"></div>
+          <div class="clip-trim-bar-fill" id="clipTrimBarFill"></div>
+          <div class="clip-trim-bar-thumb" id="clipTrimThumbL" title="中间可播段起点"></div>
+          <div class="clip-trim-bar-thumb" id="clipTrimThumbR" title="中间可播段终点"></div>
+        </div>
+        <div class="clip-trim-bar-meta" id="clipTrimBarMeta"></div>
+        <div class="clip-audio-row" id="clipAudioRow">
+          <label title="音量百分比：0 = 静音，100 = 原始">
+            音量
+            <input type="range" id="clipGainRange" min="0" max="100" step="1" value="100" disabled />
+            <input type="number" id="clipGainInput" min="0" max="100" step="1" value="100" disabled />
+            %
+          </label>
+          <label title="每个片段独立的播放速率（百分比，100 = 原速 1.0×；音高随速度变化）">
+            音速
+            <input type="range" id="clipRateRange" min="30" max="300" step="5" value="100" disabled />
+            <input type="number" id="clipRateInput" min="30" max="300" step="5" value="100" disabled />
+            %
+          </label>
+          <label title="片段开头的线性淡入时长（秒）">
+            淡入
+            <input type="number" id="clipFadeInInput" min="0" step="0.05" value="0" disabled />
+            s
+          </label>
+          <label title="片段结尾的线性淡出时长（秒）">
+            淡出
+            <input type="number" id="clipFadeOutInput" min="0" step="0.05" value="0" disabled />
+            s
+          </label>
+          <span class="hint" id="clipAudioHint">选中背景音片段后可调节</span>
+        </div>
+      </div>
+      <div id="timelineScroll" tabindex="-1" aria-label="时间线区域，选中片段后可按 Delete 删除">
+        <div id="timelineInner"></div>
+      </div>
+      <div id="transport">
+        <button type="button" id="btnPlay" disabled title="时间线上有片段时可从黄线起播，播放到红线停止">
+          播放
+        </button>
+        <button type="button" id="btnStop">停止</button>
+        <button type="button" id="btnClearTimeline" title="清空时间线上所有片段（台词与背景音），并把黄线/红线重置">
+          清除
+        </button>
+        <button type="button" class="primary" id="btnExport">导出总轨 WAV</button>
+        <span id="status"></span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /** 配音 API 基址；未带 ?api= 时默认连本机 8770（与 dubbing_server.py 一致），避免从其它端口打开页面时出现 Failed to fetch */
+    const API = (() => {
+      const q = new URLSearchParams(window.location.search).get("api");
+      if (q && String(q).trim()) return String(q).replace(/\/$/, "");
+      if (String(window.location.port) === "8780") return "http://127.0.0.1:8770";
+      return "http://127.0.0.1:8770";
+    })();
+    let sampleRate = 48000;
+    let playCtx = null;
+
+    /** @type {{ id: string, name: string, ref: string, refLocalBuffer?: AudioBuffer | null, refLocalName?: string }[]} */
+    let characters = [];
+    /**
+     * 背景音素材池（不再直接挂到时间线；点「添加到时间线」才生成 clips[] 中的一段 bg clip）
+     * @type {{
+     *   id: string,
+     *   note: string,
+     *   path: string,
+     *   buffer: AudioBuffer | null,
+     *   localFileName?: string,
+     * }[]}
+     */
+    let bgTracks = [];
+    /**
+     * 时间线片段：台词片段（kind 省略或 "line"）和背景音片段（kind:"bg"）一起放这里；
+     * 台词用 trackIndex 定位角色轨；背景音用 bgTrackIndex 定位背景轨，trackIndex 视为无效。
+     * @type {{ id: string, kind?: "line" | "bg", charIndex: number, trackIndex: number, bgTrackIndex?: number, text: string, startSec: number, buffer: AudioBuffer, trimIn?: number, trimOut?: number, midIn?: number, midOut?: number, roleName?: string, cfgValue?: number, inferenceTimesteps?: number }[]} */
+    let clips = [];
+    let selectedClipId = null;
+    let trimDrag = null;
+    /** @type {{ edge: "L" | "R" } | null} */
+    let stripDrag = null;
+    /** @type {{ id: string, charIndex: number, text: string, cfgValue: number, inferenceTimesteps: number, buffer: AudioBuffer | null, ttsCacheBadge?: "none"|"fresh"|"hit"|"error", batchSelected?: boolean, _generating?: boolean }[]} */
+    let lineRows = [];
+    let previewCtx = null;
+    /** 正在用「本行播放」试听的那一行 id（与 trim 条试听互斥，见 stopPlay） */
+    let rowPreviewPlayingId = null;
+
+    let pixelsPerSec = 72;
+    /** 时间轴左端固定为 0 */
+    const axisStartSec = 0;
+    /** 时间轴右端（秒） */
+    let axisEndSec = 45;
+    /** 黄线：起播/编辑位置（秒） */
+    let playheadSec = 0;
+    /** 红线：结束位（秒），播放/导出到此为止；默认 20s（可拖动、可被 JSON 覆盖） */
+    let playEndSec = 20;
+    /** 绿线：混音播放当前时间轴位置（秒） */
+    let playLineSec = 0;
+    let playLineRaf = null;
+    let mixPlayT0 = 0;
+    let mixPlayFrom = 0;
+    let mixPlayRate = 1;
+    let mixEndWall = 0;
+
+    let drag = null;
+
+    function timelineLabelPx() {
+      const inner = document.getElementById("timelineInner");
+      if (!inner) return 120;
+      const v = getComputedStyle(inner).getPropertyValue("--tl-label-w").trim();
+      const n = parseFloat(v);
+      return Number.isFinite(n) && n > 0 ? n : 120;
+    }
+
+    function timeToPx(t) {
+      return (t - axisStartSec) * pixelsPerSec;
+    }
+
+    const MIN_CLIP_SEC = 0.08;
+
+    /** 片段播放速率（线性系数，0.3 .. 3.0）；来自 ratePct/100，非法或 ≤0 时回落到 1 */
+    function clipRateFactor(c) {
+      const p = Number(c?.ratePct);
+      return Number.isFinite(p) && p > 0 ? Math.max(0.3, Math.min(3, p / 100)) : 1;
+    }
+
+    /** 时间线上的片段宽度（外侧裁边后整段长度，秒，素材维度） */
+    function clipEffectiveDur(c) {
+      const ti = c.trimIn || 0;
+      const to = c.trimOut || 0;
+      return Math.max(MIN_CLIP_SEC, c.buffer.duration - ti - to);
+    }
+
+    /** 实际播放/导出的长度（秒，素材维度；再扣掉中间段两侧的「灰区」） */
+    function clipPlayDur(c) {
+      const span = clipEffectiveDur(c);
+      const mi = Math.min(c.midIn || 0, Math.max(0, span - MIN_CLIP_SEC));
+      const mo = Math.min(c.midOut || 0, Math.max(0, span - MIN_CLIP_SEC - mi));
+      return Math.max(MIN_CLIP_SEC, span - mi - mo);
+    }
+
+    /** 片段在时间线上实际占用的长度（秒）= 素材可播长度 / 速率 */
+    function clipTimelinePlayDur(c) {
+      return clipPlayDur(c) / clipRateFactor(c);
+    }
+
+    /** 时间线上块左缘（秒）= 外层起点 + 左侧灰区 */
+    function clipTimelineLeftSec(c) {
+      return c.startSec + (c.midIn || 0);
+    }
+
+    /** startSec 下限：可播左缘 ≥ 0，才能把块拖到对齐 00:00（有 midIn 时 startSec 可为负） */
+    function clipStartSecMin(c) {
+      return -(c.midIn || 0);
+    }
+
+    function clampClipStartSec(c, sec) {
+      return Math.max(clipStartSecMin(c), sec);
+    }
+
+    /** 片段线性音量（0..1）：来自 gainPct/100；负值/非法→1 */
+    function clipGainLinear(c) {
+      const p = Number(c?.gainPct);
+      return Number.isFinite(p) && p >= 0 ? Math.min(1, p / 100) : 1;
+    }
+
+    /** 淡入秒数（素材/源域），夹紧到 [0, rawPlay * 0.5] */
+    function clipFadeInSec(c) {
+      if (!c) return 0;
+      return numOr(c.fadeInSec, 0, 0, clipPlayDur(c) * 0.5);
+    }
+
+    /** 淡出秒数（素材/源域），夹紧后与淡入之和不超过 rawPlay */
+    function clipFadeOutSec(c) {
+      if (!c) return 0;
+      return numOr(c.fadeOutSec, 0, 0, Math.max(0, clipPlayDur(c) - clipFadeInSec(c)));
+    }
+
+    function layoutClipElement(el, c) {
+      if (!el || !c) return;
+      el.style.left = timeToPx(clipTimelineLeftSec(c)) + "px";
+      el.style.width = Math.max(36, clipTimelinePlayDur(c) * pixelsPerSec) + "px";
+    }
+
+    /** 波形只画「可播段」，与顶条 100%→选中比例一致 */
+    function drawClipPlayWaveform(canvas, buffer, c) {
+      const ti = (c.trimIn || 0) + (c.midIn || 0);
+      const to = (c.trimOut || 0) + (c.midOut || 0);
+      drawWaveformOnCanvas(canvas, buffer, ti, to, 0, 0);
+    }
+
+    function normalizeClipTrim(c) {
+      const maxD = c.buffer.duration;
+      let ti = Math.max(0, c.trimIn || 0);
+      let to = Math.max(0, c.trimOut || 0);
+      if (ti + to > maxD - MIN_CLIP_SEC) {
+        const excess = ti + to - (maxD - MIN_CLIP_SEC);
+        if (ti >= to) ti = Math.max(0, ti - excess);
+        else to = Math.max(0, to - excess);
+      }
+      c.trimIn = ti;
+      c.trimOut = to;
+      normalizeMidTrim(c);
+    }
+
+    function normalizeMidTrim(c) {
+      const span = c.buffer.duration - (c.trimIn || 0) - (c.trimOut || 0);
+      const spanM = Math.max(MIN_CLIP_SEC, span);
+      let mi = Math.max(0, c.midIn || 0);
+      let mo = Math.max(0, c.midOut || 0);
+      if (mi + mo > spanM - MIN_CLIP_SEC) {
+        const excess = mi + mo - (spanM - MIN_CLIP_SEC);
+        if (mi >= mo) mi = Math.max(0, mi - excess);
+        else mo = Math.max(0, mo - excess);
+      }
+      c.midIn = mi;
+      c.midOut = mo;
+      c.startSec = clampClipStartSec(c, c.startSec);
+    }
+
+    function selectClip(id) {
+      selectedClipId = id;
+      document.querySelectorAll(".clip").forEach((el) => {
+        el.classList.toggle("selected", el.dataset.clipId === id);
+      });
+      updateClipTrimBar();
+      const sc = document.getElementById("timelineScroll");
+      if (sc) {
+        try {
+          sc.focus({ preventScroll: true });
+        } catch (_) {
+          try {
+            sc.focus();
+          } catch (_) {}
+        }
+      }
+    }
+
+    function refreshSelectedClipVisuals() {
+      if (!selectedClipId) return;
+      const c = clips.find((x) => x.id === selectedClipId);
+      if (!c || !c.buffer) return;
+      const el = document.querySelector('.clip[data-clip-id="' + selectedClipId.replace(/"/g, "") + '"]');
+      if (!el) return;
+      layoutClipElement(el, c);
+      const canvas = el.querySelector("canvas");
+      if (canvas && c.buffer) {
+        drawClipPlayWaveform(canvas, c.buffer, c);
+      }
+    }
+
+    function updateClipTrimBar() {
+      const shell = document.getElementById("clipTrimBar");
+      const title = document.getElementById("clipTrimBarTitle");
+      const fill = document.getElementById("clipTrimBarFill");
+      const meta = document.getElementById("clipTrimBarMeta");
+      const thumbL = document.getElementById("clipTrimThumbL");
+      const thumbR = document.getElementById("clipTrimThumbR");
+      const btnTrimPreview = document.getElementById("btnTrimPreview");
+      const btnPlay = document.getElementById("btnPlay");
+      const gainRng = document.getElementById("clipGainRange");
+      const gainIn = document.getElementById("clipGainInput");
+      const rateRng = document.getElementById("clipRateRange");
+      const rateIn = document.getElementById("clipRateInput");
+      const fInIn = document.getElementById("clipFadeInInput");
+      const fOutIn = document.getElementById("clipFadeOutInput");
+      const audioHint = document.getElementById("clipAudioHint");
+      if (!shell || !title || !fill || !meta || !thumbL || !thumbR) return;
+      const c = selectedClipId ? clips.find((x) => x.id === selectedClipId) : null;
+      const canPreview = !!(c && c.buffer);
+      const audioEditable = canPreview;
+      [gainRng, gainIn, rateRng, rateIn, fInIn, fOutIn].forEach((el) => {
+        if (el) el.disabled = !audioEditable;
+      });
+      if (audioEditable) {
+        const gp = Math.round(numOr(c.gainPct, 100, 0, 100));
+        if (gainRng) gainRng.value = String(gp);
+        if (gainIn) gainIn.value = String(gp);
+        if (fInIn) fInIn.value = Number(c.fadeInSec || 0).toFixed(2);
+        if (fOutIn) fOutIn.value = Number(c.fadeOutSec || 0).toFixed(2);
+        const rp = Math.round(numOr(c.ratePct, 100, 30, 300));
+        if (rateRng) rateRng.value = String(rp);
+        if (rateIn) rateIn.value = String(rp);
+        if (audioHint) {
+          const fi = clipFadeInSec(c);
+          const fo = clipFadeOutSec(c);
+          const tlPlay = clipTimelinePlayDur(c);
+          const rf = clipRateFactor(c);
+          const label = c.kind === "bg" ? "背景音" : "台词";
+          audioHint.textContent =
+            label + " · 音速 ×" + rf.toFixed(2) +
+            " · 有效淡入 " + fi.toFixed(2) + "s / 淡出 " + fo.toFixed(2) +
+            "s · 时间线占用 " + tlPlay.toFixed(2) + "s";
+        }
+      } else {
+        if (gainRng) gainRng.value = "100";
+        if (gainIn) gainIn.value = "100";
+        if (rateRng) rateRng.value = "100";
+        if (rateIn) rateIn.value = "100";
+        if (fInIn) fInIn.value = "0";
+        if (fOutIn) fOutIn.value = "0";
+        if (audioHint) {
+          audioHint.textContent = "选中任意片段（台词或背景音）后可调节";
+        }
+      }
+      if (btnPlay) {
+        btnPlay.disabled = !clips.length;
+        btnPlay.title = clips.length
+          ? "从黄线起播，到红线停止（含台词与背景音）"
+          : "时间线为空 · 请先生成台词片段，或在背景音表格点「添加到时间线」";
+      }
+      if (btnTrimPreview) {
+        btnTrimPreview.disabled = !canPreview;
+        btnTrimPreview.title = canPreview ? "试听当前选中片段的可播段（顶条高亮部分）" : "请先在时间线上选中一个片段";
+      }
+      if (!c || !c.buffer) {
+        title.textContent = "中间可播段 — 请先在时间线上点击一个音频块";
+        fill.style.left = "0%";
+        fill.style.width = "100%";
+        fill.style.opacity = "0.22";
+        thumbL.style.left = "0%";
+        thumbR.style.left = "100%";
+        thumbL.style.opacity = "0.35";
+        thumbR.style.opacity = "0.35";
+        thumbL.style.pointerEvents = "none";
+        thumbR.style.pointerEvents = "none";
+        meta.textContent = "播放头：" + fmtTime(playheadSec) + " · 未选中片段";
+        return;
+      }
+      fill.style.opacity = "1";
+      thumbL.style.opacity = "1";
+      thumbR.style.opacity = "1";
+      thumbL.style.pointerEvents = "";
+      thumbR.style.pointerEvents = "";
+      if (c.kind === "bg") {
+        const bi = typeof c.bgTrackIndex === "number" ? c.bgTrackIndex : -1;
+        const bgRow = bi >= 0 ? bgTracks[bi] : null;
+        const label = (bgRow && (bgRow.note || bgRow.localFileName || bgRow.path)) || c.roleName || "背景";
+        title.textContent = "选中背景音 · " + String(label).slice(0, 36);
+      } else {
+        const nm = characters[c.charIndex]?.name || "?";
+        title.textContent = "选中片段 · " + nm + " · " + (c.text || "").slice(0, 36);
+      }
+      const outer = clipEffectiveDur(c);
+      const mi = c.midIn || 0;
+      const mo = c.midOut || 0;
+      const play = clipPlayDur(c);
+      const pL = outer > 1e-6 ? (mi / outer) * 100 : 0;
+      const pR = outer > 1e-6 ? ((outer - mo) / outer) * 100 : 100;
+      const w = Math.max(0, pR - pL);
+      fill.style.left = pL + "%";
+      fill.style.width = w + "%";
+      thumbL.style.left = pL + "%";
+      thumbR.style.left = pR + "%";
+      const pct = outer > 1e-6 ? Math.round((play / outer) * 100) : 100;
+      const rf = clipRateFactor(c);
+      meta.textContent =
+        "可播 " +
+        play.toFixed(2) +
+        " s / 整段 " +
+        outer.toFixed(2) +
+        " s（源素材，约 " +
+        pct +
+        "%）· 时间线块宽 " +
+        (play / rf).toFixed(2) +
+        " s · 播放头 " +
+        fmtTime(playheadSec);
+    }
+
+    function initClipTrimBarListeners() {
+      const track = document.getElementById("clipTrimBarTrack");
+      const tl = document.getElementById("clipTrimThumbL");
+      const tr = document.getElementById("clipTrimThumbR");
+      if (!track || !tl || !tr) return;
+
+      function applyStripFromClientX(ev, edge) {
+        const c = clips.find((x) => x.id === selectedClipId);
+        if (!c) return;
+        const outer = clipEffectiveDur(c);
+        const r = track.getBoundingClientRect();
+        if (r.width < 4) return;
+        const u = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+        const sec = u * outer;
+        const mo0 = c.midOut || 0;
+        const mi0 = c.midIn || 0;
+        if (edge === "L") {
+          c.midIn = Math.min(Math.max(0, sec), outer - mo0 - MIN_CLIP_SEC);
+        } else {
+          const endSec = Math.max(mi0 + MIN_CLIP_SEC, Math.min(outer, sec));
+          c.midOut = outer - endSec;
+        }
+        normalizeMidTrim(c);
+        refreshSelectedClipVisuals();
+        updateClipTrimBar();
+      }
+
+      function onStripMove(ev) {
+        if (!stripDrag) return;
+        applyStripFromClientX(ev, stripDrag.edge);
+      }
+
+      function onStripUp() {
+        window.removeEventListener("pointermove", onStripMove);
+        window.removeEventListener("pointerup", onStripUp);
+        window.removeEventListener("pointercancel", onStripUp);
+        suppressPlayheadPointer(false);
+        stripDrag = null;
+        const c = selectedClipId ? clips.find((x) => x.id === selectedClipId) : null;
+        if (c) normalizeMidTrim(c);
+        renderTimeline();
+        autoExtendDuration();
+      }
+
+      function bindThumb(el, edge) {
+        el.addEventListener("pointerdown", (e) => {
+          if (!selectedClipId) return;
+          e.preventDefault();
+          e.stopPropagation();
+          suppressPlayheadPointer(true);
+          stripDrag = { edge };
+          applyStripFromClientX(e, edge);
+          window.addEventListener("pointermove", onStripMove);
+          window.addEventListener("pointerup", onStripUp);
+          window.addEventListener("pointercancel", onStripUp);
+        });
+      }
+      bindThumb(tl, "L");
+      bindThumb(tr, "R");
+
+      const gainRng = document.getElementById("clipGainRange");
+      const gainIn = document.getElementById("clipGainInput");
+      const fInIn = document.getElementById("clipFadeInInput");
+      const fOutIn = document.getElementById("clipFadeOutInput");
+
+      function getSelectedEditableClip() {
+        const c = selectedClipId ? clips.find((x) => x.id === selectedClipId) : null;
+        return c && c.buffer ? c : null;
+      }
+
+      function onGainChange(raw) {
+        const c = getSelectedEditableClip();
+        if (!c) return;
+        let v = Number(raw);
+        if (!Number.isFinite(v)) v = 100;
+        v = Math.max(0, Math.min(100, v));
+        c.gainPct = v;
+        if (gainRng) gainRng.value = String(Math.round(v));
+        if (gainIn) gainIn.value = String(Math.round(v));
+        updateClipTrimBar();
+      }
+      if (gainRng) gainRng.addEventListener("input", (e) => onGainChange(e.target.value));
+      if (gainIn) gainIn.addEventListener("input", (e) => onGainChange(e.target.value));
+
+      function onFadeChange(which, raw) {
+        const c = getSelectedEditableClip();
+        if (!c) return;
+        let v = Number(raw);
+        if (!Number.isFinite(v) || v < 0) v = 0;
+        if (which === "in") c.fadeInSec = v;
+        else c.fadeOutSec = v;
+        updateClipTrimBar();
+      }
+      if (fInIn) fInIn.addEventListener("input", (e) => onFadeChange("in", e.target.value));
+      if (fOutIn) fOutIn.addEventListener("input", (e) => onFadeChange("out", e.target.value));
+
+      const rateRng = document.getElementById("clipRateRange");
+      const rateIn = document.getElementById("clipRateInput");
+      function onRatePctChange(raw) {
+        const c = getSelectedEditableClip();
+        if (!c) return;
+        let v = Number(raw);
+        if (!Number.isFinite(v)) v = 100;
+        v = Math.max(30, Math.min(300, Math.round(v)));
+        c.ratePct = v;
+        if (rateRng) rateRng.value = String(v);
+        if (rateIn) rateIn.value = String(v);
+        normalizeMidTrim(c);
+        renderTimeline();
+        updateClipTrimBar();
+        autoExtendDuration();
+      }
+      if (rateRng) rateRng.addEventListener("input", (e) => onRatePctChange(e.target.value));
+      if (rateIn) rateIn.addEventListener("input", (e) => onRatePctChange(e.target.value));
+    }
+
+    function uid() {
+      return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+    }
+
+    function setStatus(t) {
+      document.getElementById("status").textContent = t || "";
+    }
+
+    /** 把任意值转成有限数字，缺失或非法时给默认值；可选 clamp 到 [lo, hi] */
+    function numOr(v, def, lo, hi) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return def;
+      let r = n;
+      if (typeof lo === "number") r = Math.max(lo, r);
+      if (typeof hi === "number") r = Math.min(hi, r);
+      return r;
+    }
+    /** 在 spec 的两个候选字段里取第一个"有限数字"（兼容 camelCase / snake_case），都无效时回落到默认值 */
+    function numOrAlt(spec, k1, k2, def, lo, hi) {
+      const a = Number(spec?.[k1]);
+      if (Number.isFinite(a)) return numOr(a, def, lo, hi);
+      return numOr(spec?.[k2], def, lo, hi);
+    }
+
+    function defaultChars() {
+      characters = [
+        { id: uid(), name: "角色A", ref: "C:\\Users\\Administrator\\Downloads\\spk_1765183119.wav" },
+        { id: uid(), name: "角色B", ref: "C:\\Users\\Administrator\\Downloads\\spk_1765267576.wav" },
+      ];
+    }
+
+    function defaultLineRows() {
+      lineRows = [
+        {
+          id: uid(),
+          charIndex: 0,
+          text: "(平缓) 翻译,翻译什么叫的惊喜",
+          cfgValue: 2,
+          inferenceTimesteps: 10,
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: true,
+        },
+        {
+          id: uid(),
+          charIndex: 1,
+          text: "我不知道什么叫惊喜啊",
+          cfgValue: 2,
+          inferenceTimesteps: 10,
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: true,
+        },
+        {
+          id: uid(),
+          charIndex: 0,
+          text: "(愤怒) 你翻译,翻译什么叫他妈的惊喜",
+          cfgValue: 2,
+          inferenceTimesteps: 10,
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: true,
+        },
+        {
+          id: uid(),
+          charIndex: 1,
+          text: "我真不知道什么叫他妈的惊喜啊",
+          cfgValue: 2,
+          inferenceTimesteps: 10,
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: true,
+        },
+      ];
+    }
+
+    function invalidateRowTtsBadge(row) {
+      row.ttsCacheBadge = "none";
+      syncRowGenUi(row.id);
+      syncRowPlayUi(row.id);
+    }
+
+    /** 同步「生成」按钮：左侧圆标表示状态（○/⟳/✓/✗），文案固定为「生成」 */
+    function syncRowGenUi(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      const tr = document.querySelector('tr[data-line-row-id="' + String(rowId).replace(/"/g, "") + '"]');
+      if (!tr || !row) return;
+      const tdAct = tr.querySelector("td.col-actions");
+      const btn = tdAct && tdAct.querySelector("button:nth-of-type(1)");
+      if (!btn) return;
+      const el = btn.querySelector(".row-tts-cache-badge");
+      const lab = btn.querySelector(".row-gen-lab");
+      if (lab) lab.textContent = "生成";
+      if (row._generating) {
+        if (el) {
+          el.textContent = "\u27F3";
+          el.className = "row-tts-cache-badge is-gen-loading";
+          el.removeAttribute("title");
+        }
+        btn.title = "正在生成…";
+        btn.disabled = true;
+        return;
+      }
+      btn.disabled = false;
+      const b = row.ttsCacheBadge || "none";
+      if (el) {
+        if (b === "error") {
+          el.textContent = "\u2717";
+        } else if (b === "hit" || b === "fresh") {
+          el.textContent = "\u2713";
+        } else {
+          el.textContent = "\u25CB";
+        }
+        el.className =
+          "row-tts-cache-badge " +
+          (b === "none" ? "is-none" : b === "fresh" ? "is-fresh" : b === "hit" ? "is-hit" : "is-error");
+        el.title =
+          b === "hit"
+            ? "命中服务端磁盘缓存（未重新推理）"
+            : b === "fresh"
+              ? "已推理并写入服务端缓存"
+              : b === "error"
+                ? "生成失败，请查看底部状态栏"
+                : "尚未就绪：参数或台词变更后需重新生成";
+      }
+      btn.title =
+        b === "hit" || b === "fresh"
+          ? (el && el.title ? el.title : "") + " · 点此可重新生成"
+          : b === "error"
+            ? "生成失败 · 点此重试"
+            : "点此生成整段 TTS";
+    }
+
+    function syncAllRowPlayUi() {
+      lineRows.forEach((r) => syncRowPlayUi(r.id));
+    }
+
+    /** 同步「播放」按钮：左侧图标表示状态，文案固定为「播放」 */
+    function syncRowPlayUi(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      const tr = document.querySelector('tr[data-line-row-id="' + String(rowId).replace(/"/g, "") + '"]');
+      if (!tr || !row) return;
+      const tdAct = tr.querySelector("td.col-actions");
+      const btn = tdAct && tdAct.querySelector("button:nth-of-type(2)");
+      if (!btn) return;
+      const ico = btn.querySelector(".row-play-ico");
+      const lab = btn.querySelector(".row-play-lab");
+      if (lab) lab.textContent = "播放";
+      if (!row.buffer) {
+        btn.disabled = true;
+        if (ico) {
+          ico.textContent = "\u25CB";
+          ico.className = "row-play-ico is-play-idle";
+        }
+        btn.title = "请先生成整段音频，再播放试听";
+        return;
+      }
+      btn.disabled = false;
+      if (rowPreviewPlayingId === rowId) {
+        if (ico) {
+          ico.textContent = "\u266A";
+          ico.className = "row-play-ico is-play-active";
+        }
+        btn.title = "正在播放本行预览…";
+        return;
+      }
+      if (ico) {
+        ico.textContent = "\u25B6";
+        ico.className = "row-play-ico is-play-ready";
+      }
+      btn.title = "点击试听本行";
+    }
+
+    function dupAudioBuffer(buf) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ac = new AC({ sampleRate: buf.sampleRate });
+      const out = ac.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+      for (let c = 0; c < buf.numberOfChannels; c++) {
+        out.copyToChannel(new Float32Array(buf.getChannelData(c)), c);
+      }
+      ac.close().catch(() => {});
+      return out;
+    }
+
+    /** 浏览器内解码用户选择的音频文件（wav 等） */
+    async function decodeFileToAudioBuffer(file) {
+      const ab = await file.arrayBuffer();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const dec = new AC();
+      try {
+        return await dec.decodeAudioData(ab.slice(0));
+      } finally {
+        try {
+          await dec.close();
+        } catch (_) {}
+      }
+    }
+
+    /**
+     * 所选文件的本地绝对路径（若环境提供）。标准浏览器里多为空，仅部分壳层会给 File.path。
+     * 排除含 fakepath 的假路径。
+     */
+    function preferredAudioPathFromFile(file) {
+      if (!file) return "";
+      const p = /** @type {{ path?: string }} */ (file).path;
+      if (typeof p !== "string") return "";
+      const t = p.trim();
+      if (t.length < 4) return "";
+      if (/fakepath/i.test(t)) return "";
+      if (!/[/\\]/.test(t)) return "";
+      return t;
+    }
+
+    /**
+     * 浏览器拿不到本机完整路径时，问同域静态服务（web/server.js 的 /resolve_name）：
+     * 它会在 Downloads / Desktop / Documents / Music / 项目根等目录里按文件名搜，
+     * 找到唯一匹配就返回完整路径；找不到则返回空字符串，不打扰。
+     */
+    async function resolveFullPathFromFilename(filename) {
+      if (!filename) return "";
+      try {
+        const res = await fetch(window.location.origin + "/resolve_name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename }),
+        });
+        if (!res.ok) return "";
+        const j = await res.json();
+        const found = Array.isArray(j && j.found) ? j.found : [];
+        if (found.length === 1) return found[0];
+        if (found.length > 1) {
+          setStatus(
+            "本机找到多个同名文件，已取第一个（其余：" +
+              found.slice(1, 4).join(" | ") +
+              (found.length > 4 ? " …" : "") +
+              "）。若非目标请手动粘贴完整路径。"
+          );
+          return found[0];
+        }
+        return "";
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function renderCharTable() {
+      const tb = document.getElementById("charBody");
+      tb.innerHTML = "";
+      characters.forEach((c, i) => {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-char-row", c.id);
+        tr.innerHTML = `
+          <td><input type="text" data-k="name" data-id="${c.id}" value="${escapeAttr(c.name)}" /></td>
+          <td><input type="text" data-k="ref" data-id="${c.id}" value="${escapeAttr(c.ref)}" placeholder="C:\\\\Users\\\\...\\\\spk.wav · 回车校验服务器" title="完整路径；按 Enter 校验 API 能否读取" /></td>
+          <td class="wb-op-cell">
+            <label class="wb-file-label toolbar-btn toolbar-batch-add" for="char-file-${c.id}"><span class="tb-ico" aria-hidden="true">\u266A</span><span class="tb-lab">选择音轨</span></label>
+            <input type="file" accept=".wav,.mp3,audio/wav,audio/mpeg,audio/*" data-char-file="${c.id}" id="char-file-${c.id}" class="wb-file-input" />
+            <button type="button" class="toolbar-btn toolbar-row-del" data-del="${c.id}" ${characters.length <= 1 ? "disabled" : ""}><span class="tb-ico" aria-hidden="true">\u2715</span><span class="tb-lab">删除角色</span></button>
+          </td>`;
+        tb.appendChild(tr);
+      });
+      tb.querySelectorAll("input[data-k]").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const id = inp.getAttribute("data-id");
+          const ch = characters.find((x) => x.id === id);
+          if (!ch) return;
+          if (inp.getAttribute("data-k") === "name") ch.name = inp.value.trim() || ch.name;
+          else {
+            ch.ref = inp.value.trim();
+            ch.refLocalBuffer = null;
+            ch.refLocalName = undefined;
+          }
+        });
+        inp.addEventListener("change", () => {
+          const id = inp.getAttribute("data-id");
+          const ch = characters.find((x) => x.id === id);
+          if (!ch) return;
+          if (inp.getAttribute("data-k") === "name") ch.name = inp.value.trim() || ch.name;
+          else {
+            ch.ref = inp.value.trim();
+            ch.refLocalBuffer = null;
+            ch.refLocalName = undefined;
+          }
+          renderLineRows();
+          renderTimeline();
+        });
+        if (inp.getAttribute("data-k") === "ref") {
+          inp.addEventListener("keydown", (e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const id = inp.getAttribute("data-id");
+            if (id) probeCharRefFromApi(id);
+          });
+        }
+      });
+      tb.querySelectorAll("input[type=file][data-char-file]").forEach((fin) => {
+        fin.addEventListener("change", () => {
+          const id = fin.getAttribute("data-char-file");
+          const f = fin.files && fin.files[0];
+          const rawVal = fin.value || "";
+          if (id && f) loadCharRefFromFile(id, f, rawVal);
+        });
+      });
+      tb.querySelectorAll("button[data-del]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-del");
+          const idx = characters.findIndex((x) => x.id === id);
+          if (idx < 0 || characters.length <= 1) return;
+          characters.splice(idx, 1);
+          clips = clips.filter((cl) => cl.charIndex !== idx).map((cl) => ({
+            ...cl,
+            charIndex: cl.charIndex > idx ? cl.charIndex - 1 : cl.charIndex,
+            trackIndex: cl.trackIndex > idx ? cl.trackIndex - 1 : cl.trackIndex,
+          }));
+          lineRows.forEach((r) => {
+            if (r.charIndex === idx) r.charIndex = Math.max(0, idx - 1);
+            else if (r.charIndex > idx) r.charIndex -= 1;
+          });
+          renderCharTable();
+          renderLineRows();
+          renderTimeline();
+        });
+      });
+      renderLineRows();
+    }
+
+    function escapeAttr(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+    }
+
+    function updateScriptSelectAllVisual() {
+      const el = document.getElementById("scriptSelectAll");
+      if (!el) return;
+      if (!lineRows.length) {
+        el.checked = false;
+        el.indeterminate = false;
+        el.disabled = true;
+        return;
+      }
+      el.disabled = false;
+      const n = lineRows.filter((r) => r.batchSelected !== false).length;
+      el.checked = n === lineRows.length;
+      el.indeterminate = n > 0 && n < lineRows.length;
+    }
+
+    function initScriptBatchControls() {
+      const tbl = document.getElementById("scriptTable");
+      if (!tbl || tbl.dataset.batchInit) return;
+      tbl.dataset.batchInit = "1";
+      tbl.addEventListener("change", (e) => {
+        const t = e.target;
+        if (t && t.id === "scriptSelectAll") {
+          const on = t.checked;
+          lineRows.forEach((r) => {
+            r.batchSelected = on;
+          });
+          renderLineRows();
+          return;
+        }
+        if (t && t.classList.contains("row-batch-cb")) {
+          const id = t.getAttribute("data-row-id");
+          const row = lineRows.find((r) => r.id === id);
+          if (row) row.batchSelected = t.checked;
+          updateScriptSelectAllVisual();
+        }
+      });
+      document.getElementById("btnBatchGenerate").addEventListener("click", async () => {
+        const targets = lineRows.filter((r) => r.batchSelected !== false);
+        if (!targets.length) {
+          setStatus("请先勾选要参与生成的行（表头可全选）。");
+          return;
+        }
+        let ok = 0;
+        let skip = 0;
+        let fail = 0;
+        for (let i = 0; i < targets.length; i++) {
+          const row = targets[i];
+          setStatus("批量生成 " + (i + 1) + "/" + targets.length + "…");
+          const ok1 = await generateRow(row.id);
+          if (ok1 === true) {
+            ok++;
+          } else {
+            const ch = characters[row.charIndex];
+            const text = (row.text || "").trim();
+            if (!ch || !text || !(ch.ref || "").trim()) skip++;
+            else fail++;
+          }
+        }
+        setStatus(
+          "批量生成结束：成功 " +
+            ok +
+            " 行，跳过 " +
+            skip +
+            " 行（缺台词或未填参考路径），失败 " +
+            fail +
+            " 行。"
+        );
+      });
+      document.getElementById("btnBatchAdd").addEventListener("click", async () => {
+        const targets = lineRows.filter((r) => r.batchSelected !== false);
+        if (!targets.length) {
+          setStatus("请先勾选要参与批量添加的行（表头可全选）。");
+          return;
+        }
+        /** 记录批量开始时的黄线位置；批量内部会"顺移黄线"以便片段首尾相接，
+         *  批量结束后把黄线复位回来，避免黄线被顶到最后一段之后。 */
+        const playheadSecBefore = playheadSec;
+        let added = 0;
+        let skip = 0;
+        for (let i = 0; i < targets.length; i++) {
+          const row = targets[i];
+          setStatus("批量添加 " + (i + 1) + "/" + targets.length + "…");
+          if (!row.buffer) {
+            const ok = await generateRow(row.id);
+            if (!ok) {
+              skip++;
+              continue;
+            }
+          }
+          addRowToTimeline(row.id, { advancePlayhead: true });
+          added++;
+        }
+        playheadSec = Math.max(0, Math.min(axisEndSec, playheadSecBefore));
+        updatePlayheadEl();
+        updateClipTrimBar();
+        setStatus(
+          "批量添加结束：已按顺序落到时间线 " +
+            added +
+            " 条（未生成会先跑完生成）；跳过或失败 " +
+            skip +
+            " 条。黄线已复位到批量前位置 " + fmtTime(playheadSec) + "。"
+        );
+      });
+    }
+
+    function renderLineRows() {
+      const tb = document.getElementById("scriptBody");
+      if (!tb) return;
+      tb.innerHTML = "";
+      if (!characters.length) {
+        updateScriptSelectAllVisual();
+        return;
+      }
+      lineRows.forEach((row) => {
+        if (row.charIndex >= characters.length) row.charIndex = characters.length - 1;
+        if (row.charIndex < 0) row.charIndex = 0;
+        if (typeof row.cfgValue !== "number" || !Number.isFinite(row.cfgValue)) row.cfgValue = 2;
+        if (typeof row.inferenceTimesteps !== "number" || !Number.isFinite(row.inferenceTimesteps)) {
+          row.inferenceTimesteps = 10;
+        }
+        const tr = document.createElement("tr");
+        tr.dataset.lineRowId = row.id;
+        const tdSel = document.createElement("td");
+        tdSel.className = "col-sel";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.className = "row-batch-cb";
+        cb.dataset.rowId = row.id;
+        cb.checked = row.batchSelected !== false;
+        cb.title = "勾选后参与批量生成、批量添加";
+        tdSel.appendChild(cb);
+
+        const td0 = document.createElement("td");
+        td0.className = "col-char";
+        const sel = document.createElement("select");
+        characters.forEach((c, i) => {
+          const o = document.createElement("option");
+          o.value = String(i);
+          o.textContent = c.name || `角色${i + 1}`;
+          sel.appendChild(o);
+        });
+        sel.value = String(row.charIndex);
+        sel.addEventListener("change", () => {
+          row.charIndex = parseInt(sel.value, 10) || 0;
+          invalidateRowTtsBadge(row);
+        });
+        td0.appendChild(sel);
+
+        const td1 = document.createElement("td");
+        td1.className = "col-text";
+        const inp = document.createElement("input");
+        inp.type = "text";
+        inp.placeholder = "台词…";
+        inp.value = row.text;
+        inp.addEventListener("input", () => {
+          row.text = inp.value;
+          invalidateRowTtsBadge(row);
+        });
+        td1.appendChild(inp);
+
+        const tdCfg = document.createElement("td");
+        tdCfg.className = "col-cfg";
+        const inpCfg = document.createElement("input");
+        inpCfg.type = "number";
+        inpCfg.step = "0.1";
+        inpCfg.min = "0.5";
+        inpCfg.max = "5";
+        inpCfg.value = String(row.cfgValue);
+        inpCfg.title = "引导值（cfg_value）：条件引导强度，常用约 2";
+        inpCfg.addEventListener("input", () => {
+          const v = parseFloat(inpCfg.value);
+          row.cfgValue = Number.isFinite(v) ? v : 2;
+          invalidateRowTtsBadge(row);
+        });
+        tdCfg.appendChild(inpCfg);
+
+        const tdSteps = document.createElement("td");
+        tdSteps.className = "col-steps";
+        const inpSteps = document.createElement("input");
+        inpSteps.type = "number";
+        inpSteps.step = "1";
+        inpSteps.min = "1";
+        inpSteps.max = "60";
+        inpSteps.value = String(row.inferenceTimesteps);
+        inpSteps.title = "推理步数（inference_timesteps）：扩散步数，1–60";
+        inpSteps.addEventListener("input", () => {
+          const v = parseInt(inpSteps.value, 10);
+          row.inferenceTimesteps = Number.isFinite(v) ? Math.max(1, Math.min(60, v)) : 10;
+          invalidateRowTtsBadge(row);
+        });
+        tdSteps.appendChild(inpSteps);
+
+        const td2 = document.createElement("td");
+        td2.className = "col-actions";
+        const bGen = document.createElement("button");
+        bGen.type = "button";
+        bGen.className = "toolbar-btn toolbar-gen";
+        const badge = document.createElement("span");
+        badge.className = "row-tts-cache-badge";
+        badge.setAttribute("aria-hidden", "true");
+        const genLab = document.createElement("span");
+        genLab.className = "row-gen-lab";
+        bGen.appendChild(badge);
+        bGen.appendChild(genLab);
+        bGen.addEventListener("click", () => generateRow(row.id));
+        const bPlay = document.createElement("button");
+        bPlay.type = "button";
+        bPlay.className = "toolbar-btn toolbar-row-play";
+        const playIco = document.createElement("span");
+        playIco.className = "row-play-ico";
+        playIco.setAttribute("aria-hidden", "true");
+        const playLab = document.createElement("span");
+        playLab.className = "row-play-lab";
+        bPlay.appendChild(playIco);
+        bPlay.appendChild(playLab);
+        bPlay.addEventListener("click", () => playRow(row.id));
+        const bAdd = document.createElement("button");
+        bAdd.type = "button";
+        bAdd.className = "toolbar-btn toolbar-batch-add";
+        bAdd.title = "添加到时间线（黄线位置）";
+        const addIco = document.createElement("span");
+        addIco.className = "tb-ico";
+        addIco.setAttribute("aria-hidden", "true");
+        addIco.textContent = "\uFF0B";
+        const addLab = document.createElement("span");
+        addLab.className = "tb-lab";
+        addLab.textContent = "添加";
+        bAdd.appendChild(addIco);
+        bAdd.appendChild(addLab);
+        bAdd.addEventListener("click", () => addRowToTimeline(row.id));
+        const bDel = document.createElement("button");
+        bDel.type = "button";
+        bDel.className = "toolbar-btn toolbar-row-del";
+        bDel.title = "删除本行台词";
+        const delIco = document.createElement("span");
+        delIco.className = "tb-ico";
+        delIco.setAttribute("aria-hidden", "true");
+        delIco.textContent = "\u2715";
+        const delLab = document.createElement("span");
+        delLab.className = "tb-lab";
+        delLab.textContent = "删除";
+        bDel.appendChild(delIco);
+        bDel.appendChild(delLab);
+        bDel.disabled = lineRows.length <= 1;
+        bDel.addEventListener("click", () => {
+          if (lineRows.length <= 1) return;
+          lineRows = lineRows.filter((r) => r.id !== row.id);
+          renderLineRows();
+        });
+        td2.appendChild(bGen);
+        td2.appendChild(bPlay);
+        td2.appendChild(bAdd);
+        td2.appendChild(bDel);
+
+        tr.appendChild(tdSel);
+        tr.appendChild(td0);
+        tr.appendChild(td1);
+        tr.appendChild(tdCfg);
+        tr.appendChild(tdSteps);
+        tr.appendChild(td2);
+        tb.appendChild(tr);
+        if (typeof row.ttsCacheBadge !== "string") row.ttsCacheBadge = "none";
+        syncRowGenUi(row.id);
+        syncRowPlayUi(row.id);
+      });
+      updateScriptSelectAllVisual();
+    }
+
+    async function generateRow(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      if (!row) return false;
+      const idx = row.charIndex;
+      const ch = characters[idx];
+      const text = row.text.trim().normalize("NFC");
+      if (!ch || !text) {
+        setStatus("请填写该行台词。");
+        return false;
+      }
+      if (!ch.ref.trim()) {
+        setStatus("请先在「一、角色与参考音色」里为该角色填写参考 wav 路径（或选择音轨）。");
+        return false;
+      }
+      const cfgVal = numOr(row.cfgValue, 2);
+      const stepsVal = Math.round(numOr(row.inferenceTimesteps, 10, 1, 60));
+      if (previewCtx) {
+        try {
+          previewCtx.close();
+        } catch (_) {}
+        previewCtx = null;
+      }
+      const prevPid = rowPreviewPlayingId;
+      rowPreviewPlayingId = null;
+      if (prevPid) syncRowPlayUi(prevPid);
+      row._generating = true;
+      syncRowGenUi(rowId);
+      setStatus("生成中…");
+      try {
+        const res = await fetch(API + "/api/tts/render", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            reference_wav_path: ch.ref.trim(),
+            role_name: String((ch.name || "").trim()).normalize("NFC"),
+            cfg_value: cfgVal,
+            inference_timesteps: stepsVal,
+          }),
+        });
+        if (!res.ok) {
+          let msg = res.status + " " + res.statusText;
+          try {
+            const j = await res.json();
+            if (j.detail) msg += " — " + JSON.stringify(j.detail);
+          } catch (_) {}
+          row._generating = false;
+          row.ttsCacheBadge = "error";
+          syncRowGenUi(rowId);
+          syncRowPlayUi(rowId);
+          setStatus(msg);
+          return false;
+        }
+        const cacheHdr = (res.headers.get("X-Tts-Cache") || "").toLowerCase();
+        row.ttsCacheBadge = cacheHdr === "hit" ? "hit" : "fresh";
+        const srH = res.headers.get("X-Sample-Rate");
+        if (srH) sampleRate = parseInt(srH, 10) || sampleRate;
+        const ab = await res.arrayBuffer();
+        const dec = new (window.AudioContext || window.webkitAudioContext)();
+        const buf = await dec.decodeAudioData(ab.slice(0));
+        await dec.close();
+        sampleRate = buf.sampleRate || sampleRate;
+        row.buffer = buf;
+        const cacheNote =
+          cacheHdr === "hit"
+            ? "（服务端磁盘缓存命中，未重新推理）"
+            : "（已推理并写入服务端缓存）";
+        setStatus("本行已生成 " + cacheNote + "，时长 " + buf.duration.toFixed(2) + " s，可播放或添加到时间线。");
+        row._generating = false;
+        syncRowGenUi(rowId);
+        syncRowPlayUi(rowId);
+        return true;
+      } catch (err) {
+        row._generating = false;
+        row.ttsCacheBadge = "error";
+        syncRowGenUi(row.id);
+        syncRowPlayUi(row.id);
+        const msg = String(err && err.message ? err.message : err);
+        if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+          setStatus(
+            "无法连接配音 API（" +
+              msg +
+              "）。请另开终端在项目根目录运行: python dubbing_server.py ，确认监听 " +
+              API +
+              " 后再点「生成」。若 API 不在本地址，请在页面 URL 后加 ?api=你的API根地址"
+          );
+        } else {
+          setStatus(msg);
+        }
+        return false;
+      }
+    }
+
+    async function playRow(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      if (!row || !row.buffer) {
+        setStatus("该行尚未生成，请先点「生成」。");
+        return;
+      }
+      const prevPlaying = rowPreviewPlayingId;
+      if (previewCtx) {
+        try {
+          previewCtx.close();
+        } catch (_) {}
+        previewCtx = null;
+      }
+      rowPreviewPlayingId = null;
+      if (prevPlaying) syncRowPlayUi(prevPlaying);
+      rowPreviewPlayingId = rowId;
+      syncRowPlayUi(rowId);
+      const AC = window.AudioContext || window.webkitAudioContext;
+      previewCtx = new AC({ sampleRate: row.buffer.sampleRate });
+      const src = previewCtx.createBufferSource();
+      src.buffer = row.buffer;
+      src.connect(previewCtx.destination);
+      src.onended = () => {
+        if (rowPreviewPlayingId === rowId) {
+          rowPreviewPlayingId = null;
+          syncRowPlayUi(rowId);
+        }
+      };
+      src.start();
+      setStatus("正在播放本行预览…");
+    }
+
+    /** 试听时间线当前选中片段的可播段（与顶条高亮一致） */
+    function playTrimBarPreview() {
+      const c = selectedClipId ? clips.find((x) => x.id === selectedClipId) : null;
+      if (!c || !c.buffer) {
+        setStatus("请先在时间线上选中一个片段。");
+        return;
+      }
+      stopPlay();
+      const buf = c.buffer;
+      const trimIn = c.trimIn || 0;
+      const midI = c.midIn || 0;
+      const playLen = clipPlayDur(c);
+      const bufOff = trimIn + midI;
+      if (playLen <= 0) {
+        setStatus("可播段长度过短，无法试听。");
+        return;
+      }
+      try {
+        const rate = clipRateFactor(c);
+        const AC = window.AudioContext || window.webkitAudioContext;
+        previewCtx = new AC({ sampleRate: buf.sampleRate });
+        const src = previewCtx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = rate;
+        const g = clipGainLinear(c);
+        const fIn = clipFadeInSec(c);
+        const fOut = clipFadeOutSec(c);
+        const needGain = g !== 1 || fIn > 0 || fOut > 0;
+        let gainMsg = "";
+        if (needGain) {
+          const gNode = previewCtx.createGain();
+          const startAt = previewCtx.currentTime + 0.02;
+          const wallLen = playLen / rate;
+          const fInWall = Math.min(fIn / rate, wallLen);
+          const fOutWall = Math.min(fOut / rate, Math.max(0, wallLen - fInWall));
+          gNode.gain.setValueAtTime(fInWall > 0 ? 0 : g, startAt);
+          if (fInWall > 0) gNode.gain.linearRampToValueAtTime(g, startAt + fInWall);
+          if (fOutWall > 0) {
+            gNode.gain.setValueAtTime(g, startAt + wallLen - fOutWall);
+            gNode.gain.linearRampToValueAtTime(0, startAt + wallLen);
+          }
+          src.connect(gNode).connect(previewCtx.destination);
+          src.start(startAt, bufOff, playLen);
+          gainMsg = " · 音量 " + Math.round(g * 100) + "% · 淡入 " + fIn.toFixed(2) + "s / 淡出 " + fOut.toFixed(2) + "s";
+        } else {
+          src.connect(previewCtx.destination);
+          src.start(0, bufOff, playLen);
+        }
+        setStatus(
+          "试听中：可播段约 " +
+            playLen.toFixed(2) +
+            " s（素材内）· 音速 ×" +
+            rate +
+            "（音高随速度变化）" + gainMsg
+        );
+      } catch (err) {
+        setStatus(String(err && err.message ? err.message : err));
+      }
+    }
+
+    /**
+     * @param {string} rowId
+     * @param {{ advancePlayhead?: boolean }} [opts]
+     */
+    function addRowToTimeline(rowId, opts) {
+      const row = lineRows.find((r) => r.id === rowId);
+      if (!row || !row.buffer) {
+        setStatus("请先点「生成」再添加到时间线。");
+        return;
+      }
+      const idx = row.charIndex;
+      if (!characters[idx]) return;
+      const buf = dupAudioBuffer(row.buffer);
+      const ch = characters[idx];
+      const clipId = uid();
+      clips.push({
+        id: clipId,
+        charIndex: idx,
+        trackIndex: idx,
+        text: row.text.trim(),
+        startSec: playheadSec,
+        buffer: buf,
+        trimIn: 0,
+        trimOut: 0,
+        midIn: 0,
+        midOut: 0,
+        roleName: (ch && ch.name) || "",
+        cfgValue: numOr(row.cfgValue, 2),
+        inferenceTimesteps: Math.round(numOr(row.inferenceTimesteps, 10)),
+        gainPct: 100,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        ratePct: 100,
+      });
+      autoExtendDuration();
+      renderTimeline();
+      if (opts && opts.advancePlayhead) {
+        const c = clips.find((x) => x.id === clipId);
+        if (c) {
+          playheadSec = clipTimelineLeftSec(c) + clipTimelinePlayDur(c);
+          updatePlayheadEl();
+        }
+      }
+      setStatus("已从播放头位置添加到时间线。");
+    }
+
+    function drawWaveformOnCanvas(canvas, buffer, trimIn, trimOut, midIn, midOut) {
+      const ti = trimIn || 0;
+      const to = trimOut || 0;
+      const mi = midIn || 0;
+      const mo = midOut || 0;
+      const sr = buffer.sampleRate;
+      const i0 = Math.max(0, Math.floor(ti * sr));
+      const nFrames = buffer.length || Math.floor(buffer.duration * sr);
+      const i1 = Math.min(nFrames, Math.floor((buffer.duration - to) * sr));
+      const chFull = buffer.getChannelData(0);
+      const ch0 = i1 > i0 ? chFull.subarray(i0, i1) : new Float32Array([0]);
+      const w = canvas.width = Math.max(40, canvas.clientWidth * (window.devicePixelRatio || 1));
+      const h = canvas.height = Math.max(24, canvas.clientHeight * (window.devicePixelRatio || 1));
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, w, h);
+      if (!ch0.length) return;
+      const outerSec = ch0.length / sr;
+      const step = Math.max(1, Math.floor(ch0.length / w));
+      const amp = h / 2;
+      const colMute = "rgba(148, 163, 184, 0.42)";
+      const colPlay = "rgba(37, 99, 235, 0.5)";
+      for (let x = 0; x < w; x++) {
+        let mn = 0, mx = 0;
+        const start = ((x * ch0.length) / w) | 0;
+        const end = Math.min(ch0.length, start + step);
+        for (let i = start; i < end; i++) {
+          const v = ch0[i];
+          if (v < mn) mn = v;
+          if (v > mx) mx = v;
+        }
+        const y1 = amp * (1 - mx);
+        const y2 = amp * (1 - mn);
+        const tLine = ((x + 0.5) / w) * outerSec;
+        const inPlay = tLine >= mi && tLine <= outerSec - mo - 1e-9;
+        ctx.fillStyle = inPlay ? colPlay : colMute;
+        ctx.fillRect(x, Math.min(y1, y2), 1, Math.max(1, Math.abs(y2 - y1)));
+      }
+    }
+
+    function axisInnerWidthPx() {
+      return Math.max(200, axisEndSec * pixelsPerSec);
+    }
+
+    function timeFromClientX(clientX) {
+      const sc = document.getElementById("timelineScroll");
+      if (!sc) return 0;
+      const lab = timelineLabelPx();
+      const x = clientX - sc.getBoundingClientRect().left + sc.scrollLeft;
+      const t = (x - lab) / pixelsPerSec;
+      return Math.max(0, Math.min(axisEndSec, t));
+    }
+
+    function renderTimeline() {
+      stopPlayLineAnim();
+      pixelsPerSec = parseFloat(document.getElementById("pps").value) || 72;
+      axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
+      playheadSec = Math.max(0, Math.min(axisEndSec, playheadSec));
+      playLineSec = Math.max(0, Math.min(axisEndSec, playLineSec));
+      if (!Number.isFinite(playEndSec) || playEndSec <= 0) playEndSec = axisEndSec;
+      playEndSec = Math.max(0, Math.min(axisEndSec, playEndSec));
+      if (playEndSec < playheadSec) playEndSec = axisEndSec;
+      const inner = document.getElementById("timelineInner");
+      const mixWasPlaying = !!playCtx;
+      const B = bgTracks.length;
+      const C = Math.max(1, characters.length);
+      inner.style.setProperty("--tracks", String(B + C));
+      const lab = timelineLabelPx();
+      const W = axisInnerWidthPx();
+      inner.style.width = lab + W + "px";
+      inner.innerHTML = "";
+
+      const corner = document.createElement("div");
+      corner.className = "timeline-corner";
+      inner.appendChild(corner);
+
+      const rulerHost = document.createElement("div");
+      rulerHost.className = "timeline-ruler-host";
+      rulerHost.style.width = W + "px";
+
+      const ruler = document.createElement("div");
+      ruler.id = "ruler";
+      ruler.style.cssText = "position:absolute;left:0;right:0;top:0;bottom:0;";
+      const step = pixelsPerSec >= 60 ? 1 : (pixelsPerSec >= 40 ? 2 : 5);
+      for (let s = 0; s <= axisEndSec + step; s += step) {
+        const x = timeToPx(s);
+        if (x > W + 8) break;
+        const t = document.createElement("div");
+        t.className = "ruler-tick";
+        t.style.left = x + "px";
+        t.textContent = fmtTime(s);
+        ruler.appendChild(t);
+      }
+      rulerHost.appendChild(ruler);
+
+      inner.appendChild(rulerHost);
+
+      ruler.addEventListener("pointerdown", (e) => {
+        if (e.target.closest(".clip")) return;
+        if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+        selectedClipId = null;
+        document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
+        updateClipTrimBar();
+      });
+
+      bgTracks.forEach((bg, bi) => {
+        const labEl = document.createElement("div");
+        labEl.className = "track-label";
+        labEl.textContent = (bg.note && bg.note.trim()) || `背景${bi + 1}`;
+        const lane = document.createElement("div");
+        lane.className = "track-lane";
+        lane.dataset.track = "bg-" + String(bi);
+        lane.style.width = W + "px";
+        lane.addEventListener("pointerdown", (e) => {
+          if (e.target.closest(".clip")) return;
+          if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+          selectedClipId = null;
+          document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
+          updateClipTrimBar();
+        });
+        const bgClipsHere = clips.filter(
+          (cl) => cl.kind === "bg" && cl.bgTrackIndex === bi && cl.buffer
+        );
+        if (bgClipsHere.length === 0) {
+          const h = document.createElement("div");
+          h.className = "bg-lane-hint";
+          h.textContent = bg.buffer
+            ? "素材已载入 · 点上表「添加到时间线」放到黄线处"
+            : "先在上表「选择音轨」或路径回车载入 wav";
+          lane.appendChild(h);
+        } else {
+          bgClipsHere.forEach((cl) => attachClipEl(lane, cl));
+        }
+        inner.appendChild(labEl);
+        inner.appendChild(lane);
+      });
+
+      characters.forEach((c, trackIndex) => {
+        const labEl = document.createElement("div");
+        labEl.className = "track-label";
+        labEl.textContent = c.name || `角色${trackIndex + 1}`;
+        const lane = document.createElement("div");
+        lane.className = "track-lane";
+        lane.dataset.track = String(trackIndex);
+        lane.style.width = W + "px";
+
+        lane.addEventListener("pointerdown", (e) => {
+          if (e.target.closest(".clip")) return;
+          if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+          selectedClipId = null;
+          document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
+          updateClipTrimBar();
+        });
+
+        clips
+          .filter((cl) => cl.kind !== "bg" && cl.trackIndex === trackIndex)
+          .forEach((cl) => attachClipEl(lane, cl));
+
+        inner.appendChild(labEl);
+        inner.appendChild(lane);
+      });
+
+      const plg = document.createElement("div");
+      plg.id = "playLineGlobal";
+      const plLine = document.createElement("div");
+      plLine.className = "ph-line-play";
+      plg.appendChild(plLine);
+      plg.style.left = lab + timeToPx(playLineSec) + "px";
+      inner.appendChild(plg);
+
+      const phg = document.createElement("div");
+      phg.id = "playheadGlobal";
+      phg.title = "黄线：起播/编辑位置（拖动）";
+      const phLine = document.createElement("div");
+      phLine.className = "ph-line";
+      phg.appendChild(phLine);
+      phg.style.left = lab + timeToPx(playheadSec) + "px";
+      inner.appendChild(phg);
+      attachPlayheadDrag(phg);
+
+      const peg = document.createElement("div");
+      peg.id = "playEndGlobal";
+      peg.title = "红线：结束位（拖动；播放/导出到此为止）";
+      const peLine = document.createElement("div");
+      peLine.className = "ph-line-end";
+      peg.appendChild(peLine);
+      peg.style.left = lab + timeToPx(playEndSec) + "px";
+      inner.appendChild(peg);
+      attachPlayEndDrag(peg);
+
+      updatePlayheadEl();
+      updatePlayEndEl();
+      updatePlayLineEl();
+      if (mixWasPlaying) {
+        setPlayLineVisible(true);
+        playLineRaf = requestAnimationFrame(playMixTick);
+      } else {
+        setPlayLineVisible(false);
+      }
+      updateClipTrimBar();
+    }
+
+    function updatePlayheadEl() {
+      const ph = document.getElementById("playheadGlobal");
+      if (!ph) return;
+      const lab = timelineLabelPx();
+      ph.style.left = lab + timeToPx(playheadSec) + "px";
+      updateClipTrimBar();
+    }
+
+    function updatePlayEndEl() {
+      const el = document.getElementById("playEndGlobal");
+      if (!el) return;
+      const lab = timelineLabelPx();
+      if (!Number.isFinite(playEndSec) || playEndSec <= 0) playEndSec = axisEndSec;
+      playEndSec = Math.max(0, Math.min(axisEndSec, playEndSec));
+      el.style.left = lab + timeToPx(playEndSec) + "px";
+    }
+
+    function updatePlayLineEl() {
+      const el = document.getElementById("playLineGlobal");
+      if (!el) return;
+      const lab = timelineLabelPx();
+      playLineSec = Math.max(0, Math.min(axisEndSec, playLineSec));
+      el.style.left = lab + timeToPx(playLineSec) + "px";
+    }
+
+    function setPlayLineVisible(show) {
+      const el = document.getElementById("playLineGlobal");
+      if (!el) return;
+      el.style.visibility = show ? "visible" : "hidden";
+    }
+
+    function stopPlayLineAnim() {
+      if (playLineRaf != null) {
+        cancelAnimationFrame(playLineRaf);
+        playLineRaf = null;
+      }
+    }
+
+    function playMixTick() {
+      if (!playCtx) {
+        playLineRaf = null;
+        return;
+      }
+      const now = playCtx.currentTime;
+      playLineSec = mixPlayFrom + (now - mixPlayT0) * mixPlayRate;
+      playLineSec = Math.max(0, Math.min(axisEndSec, playLineSec));
+      updatePlayLineEl();
+      if (now < mixEndWall - 0.02) {
+        playLineRaf = requestAnimationFrame(playMixTick);
+      } else {
+        playLineRaf = null;
+        playLineSec = Math.min(
+          axisEndSec,
+          mixPlayFrom + (mixEndWall - mixPlayT0) * mixPlayRate
+        );
+        updatePlayLineEl();
+        setPlayLineVisible(false);
+        if (playCtx) {
+          try { playCtx.close(); } catch (_) {}
+          playCtx = null;
+        }
+      }
+    }
+
+    /** 拖片段/裁边/顶条时关闭播放头命中，避免宽命中区抢走 pointermove */
+    function suppressPlayheadPointer(suppress) {
+      const ph = document.getElementById("playheadGlobal");
+      if (!ph) return;
+      ph.style.pointerEvents = suppress ? "none" : "auto";
+    }
+
+    function attachPlayheadDrag(el) {
+      el.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        e.preventDefault();
+        const capId = e.pointerId;
+        try {
+          el.setPointerCapture(capId);
+        } catch (_) {}
+
+        function move(ev) {
+          let t = timeFromClientX(ev.clientX);
+          t = Math.max(0, Math.min(axisEndSec, t));
+          t = Math.min(t, playEndSec);
+          playheadSec = t;
+          updatePlayheadEl();
+        }
+
+        function up() {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+          try {
+            el.releasePointerCapture(capId);
+          } catch (_) {}
+        }
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      });
+    }
+
+    function attachPlayEndDrag(el) {
+      el.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        e.preventDefault();
+        const capId = e.pointerId;
+        try {
+          el.setPointerCapture(capId);
+        } catch (_) {}
+
+        function move(ev) {
+          let t = timeFromClientX(ev.clientX);
+          t = Math.max(0, Math.min(axisEndSec, t));
+          t = Math.max(t, playheadSec);
+          playEndSec = t;
+          updatePlayEndEl();
+        }
+
+        function up() {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          window.removeEventListener("pointercancel", up);
+          try {
+            el.releasePointerCapture(capId);
+          } catch (_) {}
+        }
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+      });
+    }
+
+    function fmtTime(s) {
+      const v = Math.max(0, s);
+      const m = Math.floor(v / 60);
+      const sec = Math.floor(v % 60);
+      return String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+    }
+
+    function trackLaneIndexFromClientY(clientY) {
+      const inner = document.getElementById("timelineInner");
+      if (!inner) return 0;
+      const rulerH = 28;
+      const rowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--track-h")) || 72;
+      const rel = clientY - inner.getBoundingClientRect().top - rulerH;
+      const idx = Math.floor(rel / rowH);
+      const B = bgTracks.length;
+      const C = Math.max(1, characters.length);
+      return Math.max(0, Math.min(B + C - 1, idx));
+    }
+
+    function attachClipEl(lane, cl) {
+      normalizeClipTrim(cl);
+      const el = document.createElement("div");
+      const isBg = cl.kind === "bg";
+      el.className = isBg ? "clip clip-bg" : "clip";
+      el.dataset.clipId = cl.id;
+      layoutClipElement(el, cl);
+      const cv = document.createElement("canvas");
+      const title = document.createElement("div");
+      title.className = "clip-title";
+      if (isBg) {
+        const bi = typeof cl.bgTrackIndex === "number" ? cl.bgTrackIndex : -1;
+        const bg = bi >= 0 ? bgTracks[bi] : null;
+        const label = (bg && (bg.note || bg.localFileName || bg.path)) || cl.roleName || "背景";
+        title.textContent = "🎵 " + String(label).slice(0, 28);
+      } else {
+        title.textContent = (characters[cl.charIndex]?.name || "?") + " · " + (cl.text || "").slice(0, 20);
+      }
+      const hL = document.createElement("div");
+      hL.className = "clip-handle clip-handle-l";
+      hL.title = "裁剪开头";
+      const hR = document.createElement("div");
+      hR.className = "clip-handle clip-handle-r";
+      hR.title = "裁剪素材结尾";
+      el.appendChild(cv);
+      el.appendChild(title);
+      el.appendChild(hL);
+      el.appendChild(hR);
+      lane.appendChild(el);
+      if (selectedClipId === cl.id) el.classList.add("selected");
+
+      requestAnimationFrame(() => {
+        drawClipPlayWaveform(cv, cl.buffer, cl);
+      });
+
+      function bindTrimHandle(handle, edge) {
+        handle.addEventListener("pointerdown", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          selectClip(cl.id);
+          const c0 = clips.find((c) => c.id === cl.id);
+          if (!c0) return;
+          trimDrag = {
+            clipId: cl.id,
+            edge,
+            el,
+            startClientX: e.clientX,
+            trimIn0: c0.trimIn || 0,
+            trimOut0: c0.trimOut || 0,
+            startSec0: c0.startSec,
+          };
+          handle.setPointerCapture(e.pointerId);
+          suppressPlayheadPointer(true);
+
+          function onTrimMove(ev) {
+            if (!trimDrag || trimDrag.clipId !== cl.id) return;
+            const c1 = clips.find((c) => c.id === cl.id);
+            if (!c1) return;
+            const dSec = (ev.clientX - trimDrag.startClientX) / pixelsPerSec;
+            if (edge === "L") {
+              c1.trimIn = trimDrag.trimIn0 + dSec;
+            } else {
+              c1.trimOut = trimDrag.trimOut0 - dSec;
+            }
+            normalizeClipTrim(c1);
+            if (edge === "L") {
+              c1.startSec = clampClipStartSec(c1, trimDrag.startSec0 + (c1.trimIn - trimDrag.trimIn0));
+            }
+            layoutClipElement(trimDrag.el, c1);
+            const canvas = trimDrag.el.querySelector("canvas");
+            if (canvas) {
+              drawClipPlayWaveform(canvas, c1.buffer, c1);
+            }
+            if (selectedClipId === c1.id) updateClipTrimBar();
+          }
+
+          function onTrimUp() {
+            handle.removeEventListener("pointermove", onTrimMove);
+            handle.removeEventListener("pointerup", onTrimUp);
+            handle.removeEventListener("pointercancel", onTrimUp);
+            suppressPlayheadPointer(false);
+            trimDrag = null;
+            const c1 = clips.find((c) => c.id === cl.id);
+            if (c1) normalizeClipTrim(c1);
+            renderTimeline();
+            autoExtendDuration();
+          }
+
+          handle.addEventListener("pointermove", onTrimMove);
+          handle.addEventListener("pointerup", onTrimUp);
+          handle.addEventListener("pointercancel", onTrimUp);
+        });
+      }
+      bindTrimHandle(hL, "L");
+      bindTrimHandle(hR, "R");
+
+      el.addEventListener("pointerdown", (e) => {
+        if (e.target.closest(".clip-handle-l, .clip-handle-r")) return;
+        e.stopPropagation();
+        e.preventDefault();
+        selectClip(cl.id);
+        const clRef = clips.find((c) => c.id === cl.id);
+        if (!clRef) return;
+        const capPid = e.pointerId;
+        suppressPlayheadPointer(true);
+        try {
+          el.setPointerCapture(capPid);
+        } catch (_) {}
+        drag = {
+          clipId: cl.id,
+          el,
+          startClientX: e.clientX,
+          startClientY: e.clientY,
+          startLeftSec: clRef.startSec,
+          startTrack: clRef.trackIndex,
+        };
+
+        function onMove(ev) {
+          if (!drag || drag.clipId !== cl.id) return;
+          const c0 = clips.find((c) => c.id === drag.clipId);
+          if (!c0) return;
+          const dx = ev.clientX - drag.startClientX;
+          c0.startSec = clampClipStartSec(c0, drag.startLeftSec + dx / pixelsPerSec);
+          layoutClipElement(drag.el, c0);
+        }
+
+        function onUp(ev) {
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+          window.removeEventListener("pointercancel", onUp);
+          try {
+            el.releasePointerCapture(capPid);
+          } catch (_) {}
+          suppressPlayheadPointer(false);
+          if (!drag || drag.clipId !== cl.id) return;
+          const c0 = clips.find((c) => c.id === drag.clipId);
+          const d = drag;
+          drag = null;
+          if (!c0) return;
+          const dx = ev.clientX - d.startClientX;
+          const dy = ev.clientY - d.startClientY;
+          const moved = Math.hypot(dx, dy) > 4;
+          if (!moved) {
+            return;
+          }
+          const newLane = trackLaneIndexFromClientY(ev.clientY);
+          const B = bgTracks.length;
+          if (c0.kind === "bg") {
+            if (newLane >= 0 && newLane < B && newLane !== c0.bgTrackIndex) {
+              c0.bgTrackIndex = newLane;
+              renderTimeline();
+            }
+          } else {
+            const newCharTrack = newLane - B;
+            if (
+              newLane >= B &&
+              newCharTrack >= 0 &&
+              newCharTrack < characters.length &&
+              newCharTrack !== c0.trackIndex
+            ) {
+              c0.trackIndex = newCharTrack;
+              renderTimeline();
+            }
+          }
+          autoExtendDuration();
+        }
+
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+      });
+    }
+
+    function autoExtendDuration() {
+      axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
+      let end = axisEndSec;
+      for (const c of clips) {
+        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c) + 2);
+      }
+      if (end > axisEndSec - 0.5) {
+        document.getElementById("durSec").value = String(Math.ceil(end));
+        renderTimeline();
+      }
+    }
+
+    /** 从表格 DOM 写回路径/备注（避免用户未失焦就点「服务器」时 change 未触发） */
+    function syncBgTrackInputsFromDom(trackId) {
+      const t = bgTracks.find((x) => x.id === trackId);
+      if (!t) return;
+      const tb = document.getElementById("bgBody");
+      if (!tb) return;
+      const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(trackId)) : String(trackId).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const tr = tb.querySelector("tr[data-bg-row=\"" + esc + "\"]");
+      if (tr) {
+        const pi = tr.querySelector('input[data-bg="path"]');
+        const ni = tr.querySelector('input[data-bg="note"]');
+        if (pi) t.path = pi.value.trim();
+        if (ni) t.note = ni.value;
+      }
+    }
+
+    function syncCharRefInputFromDom(charId) {
+      const ch = characters.find((x) => x.id === charId);
+      if (!ch) return;
+      const tb = document.getElementById("charBody");
+      if (!tb) return;
+      const esc = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(charId)) : String(charId).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const inp = tb.querySelector("input[data-k=\"ref\"][data-id=\"" + esc + "\"]");
+      if (inp) ch.ref = inp.value.trim();
+    }
+
+    /** 校验参考 wav 可读（与背景轨同一 API），不占用长期内存 */
+    async function probeCharRefFromApi(charId) {
+      syncCharRefInputFromDom(charId);
+      const ch = characters.find((x) => x.id === charId);
+      if (!ch) return;
+      const p = (ch.ref || "").trim();
+      if (!p) {
+        setStatus("请先填写参考 wav 路径。");
+        return;
+      }
+      if (!API) {
+        setStatus("未配置 API，无法载入。");
+        return;
+      }
+      setStatus("正在校验参考音…");
+      try {
+        const res = await fetch(API + "/api/workbench/read_wav", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: p }),
+        });
+        if (!res.ok) {
+          const tx = await res.text();
+          throw new Error(res.status + " " + tx.slice(0, 160));
+        }
+        const ab = await res.arrayBuffer();
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const dec = new AC();
+        let dur = 0;
+        try {
+          const buf = await dec.decodeAudioData(ab.slice(0));
+          dur = buf && buf.duration ? buf.duration : 0;
+        } finally {
+          try {
+            await dec.close();
+          } catch (_) {}
+        }
+        setStatus(
+          "参考 wav 可读：「" +
+            (ch.name || "?").slice(0, 20) +
+            "」· 约 " +
+            dur.toFixed(2) +
+            " s（生成 TTS 时仍由服务端读此路径）"
+        );
+      } catch (err) {
+        setStatus("参考音载入失败：" + (err && err.message ? err.message : String(err)));
+      }
+    }
+
+    async function loadCharRefFromFile(charId, file, rawInputValue) {
+      const ch = characters.find((x) => x.id === charId);
+      if (!ch || !file) return;
+      setStatus("正在解码参考音…");
+      try {
+        ch.refLocalBuffer = await decodeFileToAudioBuffer(file);
+        ch.refLocalName = file.name || "参考.wav";
+        let fp = preferredAudioPathFromFile(file);
+        const nm = file.name || "";
+        let resolvedBy = fp ? "File.path" : "";
+        if (!fp && nm) {
+          setStatus("正在向页面服务查询本机完整路径…");
+          const found = await resolveFullPathFromFilename(nm);
+          if (found) {
+            fp = found;
+            resolvedBy = "页面服务 /resolve_name";
+          }
+        }
+        const shown = fp || rawInputValue || nm;
+        const tb = document.getElementById("charBody");
+        const esc =
+          typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(charId)) : String(charId).replace(/"/g, '\\"');
+        const tr = tb && tb.querySelector("tr[data-char-row=\"" + esc + "\"]");
+        const rin = tr && tr.querySelector('input[data-k="ref"]');
+        ch.ref = shown;
+        if (rin) rin.value = shown;
+        const dur = ch.refLocalBuffer ? ch.refLocalBuffer.duration : 0;
+        setStatus(
+          "「" +
+            (ch.name || "?").slice(0, 16) +
+            "」已选参考音「" +
+            nm +
+            "」· 约 " +
+            dur.toFixed(2) +
+            " s。" +
+            (fp
+              ? "路径框为本机完整路径（来源：" + resolvedBy + "）。"
+              : "浏览器未提供完整路径，路径框当前为 " +
+                (rawInputValue ? "浏览器假路径" : "文件名") +
+                "，生成/载入 wav 前请手动改为真实完整路径。")
+        );
+      } catch (err) {
+        ch.refLocalBuffer = null;
+        ch.refLocalName = undefined;
+        setStatus("本机参考音解码失败：" + (err && err.message ? err.message : String(err)));
+      }
+    }
+
+    /** 把 bg clip 的 buffer 同步到 bgTracks[bi].buffer（切换音源、删除、重载后调用） */
+    function syncBgClipsBuffer(bgTrackId) {
+      const bi = bgTracks.findIndex((x) => x.id === bgTrackId);
+      if (bi < 0) return;
+      const bt = bgTracks[bi];
+      const nextBuf = (bt && bt.buffer) || null;
+      for (const c of clips) {
+        if (c.kind === "bg" && c.bgTrackIndex === bi) {
+          if (nextBuf && c.buffer !== nextBuf) {
+            c.buffer = nextBuf;
+            c.trimIn = Math.min(c.trimIn || 0, Math.max(0, nextBuf.duration - MIN_CLIP_SEC));
+            c.trimOut = Math.min(c.trimOut || 0, Math.max(0, nextBuf.duration - MIN_CLIP_SEC - (c.trimIn || 0)));
+          } else if (!nextBuf) {
+            c.buffer = /** @type {any} */ (null);
+          }
+        }
+      }
+    }
+
+    async function loadBgTrackFromFile(trackId, file, rawInputValue) {
+      syncBgTrackInputsFromDom(trackId);
+      const t = bgTracks.find((x) => x.id === trackId);
+      if (!t || !file) return;
+      setStatus("正在解码背景音文件…");
+      try {
+        t.buffer = await decodeFileToAudioBuffer(file);
+        syncBgClipsBuffer(t.id);
+        let fp = preferredAudioPathFromFile(file);
+        const nm = file.name || "audio";
+        let resolvedBy = fp ? "File.path" : "";
+        if (!fp && nm) {
+          setStatus("正在向页面服务查询本机完整路径…");
+          const found = await resolveFullPathFromFilename(nm);
+          if (found) {
+            fp = found;
+            resolvedBy = "页面服务 /resolve_name";
+          }
+        }
+        const shown = fp || rawInputValue || nm;
+        const tb = document.getElementById("bgBody");
+        const esc =
+          typeof CSS !== "undefined" && CSS.escape ? CSS.escape(String(trackId)) : String(trackId).replace(/"/g, '\\"');
+        const tr = tb && tb.querySelector("tr[data-bg-row=\"" + esc + "\"]");
+        const pi = tr && tr.querySelector('input[data-bg="path"]');
+        t.path = shown;
+        t.localFileName = fp ? undefined : nm;
+        if (pi) pi.value = shown;
+        autoExtendDuration();
+        renderTimeline();
+        setStatus(
+          (fp ? "背景音已载入（来源：" + resolvedBy + "）：" : "背景音已解码，但未找到本机完整路径：") +
+            shown.slice(0, 120) +
+            (shown.length > 120 ? "…" : "")
+        );
+      } catch (err) {
+        t.buffer = null;
+        t.localFileName = undefined;
+        setStatus("背景音解码失败：" + (err && err.message ? err.message : String(err)));
+        renderTimeline();
+      }
+    }
+
+    /**
+     * 从后端按完整路径读取 wav/mp3 到 ArrayBuffer。
+     * 优先走同源 Node 静态服务的 /api/workbench/read_wav（最稳，无 CORS）；
+     * 失败再回退到 Python dubbing_server.py（API 变量，默认 127.0.0.1:8770）。
+     */
+    async function fetchReadWavArrayBuffer(p) {
+      const tried = [];
+      const tryOne = async (url) => {
+        tried.push(url);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: p }),
+        });
+        if (!res.ok) {
+          let tx = "";
+          try { tx = await res.text(); } catch (_) {}
+          const e = new Error(res.status + " " + String(tx).slice(0, 160));
+          e.status = res.status;
+          throw e;
+        }
+        return await res.arrayBuffer();
+      };
+      try {
+        return await tryOne(window.location.origin + "/api/workbench/read_wav");
+      } catch (e1) {
+        if (!API) throw new Error("[同源] " + (e1 && e1.message ? e1.message : e1));
+        try {
+          return await tryOne(API + "/api/workbench/read_wav");
+        } catch (e2) {
+          throw new Error(
+            "同源载入失败（" + (e1 && e1.message ? e1.message : e1) + "）；" +
+              "回退到 " + API + " 也失败（" + (e2 && e2.message ? e2.message : e2) + "）"
+          );
+        }
+      }
+    }
+
+    async function loadBgTrackFromApi(trackId) {
+      syncBgTrackInputsFromDom(trackId);
+      const t = bgTracks.find((x) => x.id === trackId);
+      if (!t) return;
+      const p = (t.path || "").trim();
+      if (!p) {
+        setStatus("请先填写背景 wav 路径。");
+        return;
+      }
+      setStatus("正在载入背景音…");
+      try {
+        const ab = await fetchReadWavArrayBuffer(p);
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const dec = new AC();
+        try {
+          t.buffer = await dec.decodeAudioData(ab.slice(0));
+        } finally {
+          try {
+            await dec.close();
+          } catch (_) {}
+        }
+        syncBgClipsBuffer(t.id);
+        t.localFileName = undefined;
+        autoExtendDuration();
+        renderTimeline();
+        const lbl = t.note || p;
+        setStatus("背景音已载入：" + lbl.slice(0, 60) + (lbl.length > 60 ? "…" : ""));
+      } catch (err) {
+        t.buffer = null;
+        setStatus("载入 wav 失败：" + (err && err.message ? err.message : String(err)));
+        renderTimeline();
+      }
+    }
+
+    function renderBgTable() {
+      const tb = document.getElementById("bgBody");
+      if (!tb) return;
+      tb.innerHTML = "";
+      bgTracks.forEach((t) => {
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-bg-row", t.id);
+        const placedTitle = "把已解码的背景音放到时间线当前黄线位置（可多次添加生成多段）；之后选中片段可在顶部调音量 / 淡入 / 淡出";
+        tr.innerHTML = `
+          <td><input type="text" data-bg="note" data-id="${t.id}" value="${escapeAttr(t.note)}" placeholder="如：环境、BGM" /></td>
+          <td><input type="text" data-bg="path" data-id="${t.id}" value="${escapeAttr(t.path)}" placeholder="完整路径 · 回车载入；也可直接点「添加到时间线」自动载入" title="粘贴资源管理器路径后回车立刻载入；或直接点「添加到时间线」会先载入再添加" /></td>
+          <td class="wb-op-cell">
+            <label class="wb-file-label toolbar-btn toolbar-batch-add" for="bg-file-${t.id}"><span class="tb-ico" aria-hidden="true">\u266A</span><span class="tb-lab">选择音轨</span></label>
+            <input type="file" accept=".wav,.mp3,audio/wav,audio/mpeg,audio/*" data-bg-file="${t.id}" id="bg-file-${t.id}" class="wb-file-input" />
+            <button type="button" class="toolbar-btn toolbar-addline" data-bg-place="${t.id}" title="${escapeAttr(placedTitle)}"><span class="tb-ico" aria-hidden="true">\uFF0B</span><span class="tb-lab">添加到时间线</span></button>
+            <button type="button" class="toolbar-btn toolbar-row-del" data-bg-del="${t.id}"><span class="tb-ico" aria-hidden="true">\u2715</span><span class="tb-lab">删除音轨</span></button>
+          </td>`;
+        tb.appendChild(tr);
+      });
+      tb.querySelectorAll("input[data-bg]").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const id = inp.getAttribute("data-id");
+          const row = bgTracks.find((x) => x.id === id);
+          if (!row) return;
+          const k = inp.getAttribute("data-bg");
+          if (k === "note") row.note = inp.value;
+          else row.path = inp.value.trim();
+        });
+        inp.addEventListener("change", () => {
+          const id = inp.getAttribute("data-id");
+          const row = bgTracks.find((x) => x.id === id);
+          if (!row) return;
+          const k = inp.getAttribute("data-bg");
+          if (k === "note") row.note = inp.value;
+          else row.path = inp.value.trim();
+          if (k === "path") {
+            row.buffer = null;
+            syncBgClipsBuffer(row.id);
+            renderTimeline();
+          } else if (k === "note") {
+            renderTimeline();
+          }
+        });
+      });
+      tb.querySelectorAll('input[data-bg="path"]').forEach((pi) => {
+        pi.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const id = pi.getAttribute("data-id");
+          if (id) loadBgTrackFromApi(id);
+        });
+      });
+      tb.querySelectorAll("input[type=file][data-bg-file]").forEach((fin) => {
+        fin.addEventListener("change", () => {
+          const id = fin.getAttribute("data-bg-file");
+          const f = fin.files && fin.files[0];
+          const rawVal = fin.value || "";
+          if (id && f) loadBgTrackFromFile(id, f, rawVal);
+        });
+      });
+      tb.querySelectorAll("button[data-bg-place]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-bg-place");
+          let row = bgTracks.find((x) => x.id === id);
+          if (!row) return;
+          syncBgTrackInputsFromDom(id);
+          row = bgTracks.find((x) => x.id === id);
+          if (!row.buffer) {
+            if ((row.path || "").trim()) {
+              setStatus("未载入音频，正在按路径从服务器读取…");
+              await loadBgTrackFromApi(id);
+              row = bgTracks.find((x) => x.id === id);
+              if (!row || !row.buffer) return;
+            } else {
+              setStatus(
+                "请先通过「选择音轨」选本机文件，或在路径框填好完整路径（可回车或直接点「添加到时间线」自动载入），再添加。"
+              );
+              return;
+            }
+          }
+          const bi = bgTracks.findIndex((x) => x.id === id);
+          const newClip = {
+            id: uid(),
+            kind: "bg",
+            charIndex: -1,
+            trackIndex: -1,
+            bgTrackIndex: bi,
+            text: "",
+            startSec: Math.max(0, playheadSec || 0),
+            buffer: row.buffer,
+            trimIn: 0,
+            trimOut: 0,
+            midIn: 0,
+            midOut: 0,
+            roleName: row.note || "",
+            gainPct: 100,
+            fadeInSec: 0,
+            fadeOutSec: 0,
+            ratePct: 100,
+          };
+          clips.push(newClip);
+          selectedClipId = newClip.id;
+          renderTimeline();
+          autoExtendDuration();
+          setStatus(
+            "已把背景音「" + (row.note || row.path || "?") + "」放到时间线（起点 " +
+              fmtTime(newClip.startSec) + "），可选中/拖动/裁剪；Delete 删除。"
+          );
+        });
+      });
+      tb.querySelectorAll("button[data-bg-del]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-bg-del");
+          const i = bgTracks.findIndex((x) => x.id === id);
+          if (i < 0) return;
+          const removedName = bgTracks[i].note || bgTracks[i].path || "?";
+          const before = clips.length;
+          clips = clips.filter((c) => !(c.kind === "bg" && c.bgTrackIndex === i));
+          const removedClips = before - clips.length;
+          bgTracks.splice(i, 1);
+          for (const c of clips) {
+            if (c.kind === "bg" && typeof c.bgTrackIndex === "number" && c.bgTrackIndex > i) {
+              c.bgTrackIndex -= 1;
+            }
+          }
+          if (selectedClipId && !clips.find((c) => c.id === selectedClipId)) {
+            selectedClipId = null;
+          }
+          renderBgTable();
+          renderTimeline();
+          autoExtendDuration();
+          if (removedClips > 0) {
+            setStatus(
+              "已删除背景素材「" + removedName + "」，同时移除时间线 " + removedClips + " 个对应片段。"
+            );
+          }
+        });
+      });
+    }
+
+    document.getElementById("btnAddChar").addEventListener("click", () => {
+      characters.push({ id: uid(), name: "角色" + (characters.length + 1), ref: "" });
+      renderCharTable();
+      renderLineRows();
+      renderTimeline();
+    });
+
+    document.getElementById("btnAddBgTrack").addEventListener("click", () => {
+      bgTracks.push({
+        id: uid(),
+        note: "背景" + (bgTracks.length + 1),
+        path: "",
+        buffer: null,
+      });
+      renderBgTable();
+      renderTimeline();
+    });
+
+    document.getElementById("btnAddLine").addEventListener("click", () => {
+      lineRows.push({
+        id: uid(),
+        charIndex: 0,
+        text: "",
+        cfgValue: 2,
+        inferenceTimesteps: 10,
+        buffer: null,
+        ttsCacheBadge: "none",
+        batchSelected: true,
+      });
+      renderLineRows();
+    });
+
+    document.getElementById("pps").addEventListener("change", renderTimeline);
+    document.getElementById("durSec").addEventListener("change", () => {
+      const prevEnd = axisEndSec;
+      const stickToEnd = Math.abs(playEndSec - prevEnd) < 0.001;
+      if (stickToEnd) playEndSec = Number.POSITIVE_INFINITY;
+      renderTimeline();
+    });
+
+    document.getElementById("btnFit").addEventListener("click", () => {
+      let end = 15;
+      for (const c of clips) {
+        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c) + 3);
+      }
+      document.getElementById("durSec").value = String(Math.min(600, Math.ceil(end)));
+      renderTimeline();
+    });
+
+    function stopPlay() {
+      stopPlayLineAnim();
+      setPlayLineVisible(false);
+      if (playCtx) {
+        try { playCtx.close(); } catch (_) {}
+        playCtx = null;
+      }
+      if (previewCtx) {
+        try { previewCtx.close(); } catch (_) {}
+        previewCtx = null;
+      }
+      const rid = rowPreviewPlayingId;
+      rowPreviewPlayingId = null;
+      if (rid) syncRowPlayUi(rid);
+    }
+
+    document.getElementById("btnStop").addEventListener("click", () => {
+      stopPlay();
+      setStatus("已停止");
+    });
+
+    document.getElementById("btnClearTimeline").addEventListener("click", () => {
+      if (!clips.length) {
+        setStatus("时间线已经是空的。");
+        return;
+      }
+      if (!confirm("确定要清空时间线上全部片段吗？（该操作不影响表格里的『台词』与『背景音轨』素材）")) {
+        return;
+      }
+      stopPlay();
+      const removed = clips.length;
+      clips = [];
+      selectedClipId = null;
+      playheadSec = 0;
+      const dur = parseFloat(document.getElementById("durSec").value) || 45;
+      playEndSec = Math.max(0, Math.min(dur, 20));
+      playLineSec = 0;
+      updatePlayheadEl();
+      updatePlayEndEl();
+      updatePlayLineEl();
+      setPlayLineVisible(false);
+      renderTimeline();
+      updateClipTrimBar();
+      autoExtendDuration();
+      setStatus("已清空时间线：移除 " + removed + " 个片段，黄线归 0、红线复位到 " + fmtTime(playEndSec) + "。");
+    });
+
+    document.getElementById("btnPlay").addEventListener("click", async () => {
+      stopPlay();
+      if (!clips.length) {
+        setStatus("时间线上没有可播片段。");
+        return;
+      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      playCtx = new AC({ sampleRate: sampleRate });
+      const t0 = playCtx.currentTime + 0.08;
+      /** 时间轴上黄线位置（秒），从此刻起播 */
+      const from = playheadSec;
+      /** 时间轴上红线位置（秒），播放到此停止 */
+      const endAt = Math.max(from, Math.min(axisEndSec, playEndSec));
+      if (endAt <= from) {
+        setStatus("红线不在黄线之后：请把红线拖到黄线右边。");
+        return;
+      }
+      let scheduled = 0;
+      mixEndWall = t0;
+      for (const c of clips) {
+        if (!c.buffer) continue;
+        const buf = c.buffer;
+        const trimIn = c.trimIn || 0;
+        const midI = c.midIn || 0;
+        const rate = clipRateFactor(c);
+        /** 素材维度可播长度（秒） */
+        const rawPlay = clipPlayDur(c);
+        /** 时间线维度可播长度（秒）= rawPlay / rate */
+        const tlPlay = rawPlay / rate;
+        const tAudStart = clipTimelineLeftSec(c);
+        const tAudEnd = tAudStart + tlPlay;
+        if (tAudEnd <= from) continue;
+        if (tAudStart >= endAt) continue;
+        const skipTL = Math.max(0, from - tAudStart);
+        if (skipTL >= tlPlay) continue;
+        const bufOff = trimIn + midI + skipTL * rate;
+        const tailCut = Math.max(0, tAudEnd - endAt);
+        const tlPlaySec = tlPlay - skipTL - tailCut;
+        if (tlPlaySec <= 0) continue;
+        const bufPlaySec = tlPlaySec * rate;
+        const when = t0 + Math.max(0, tAudStart - from);
+        const src = playCtx.createBufferSource();
+        src.buffer = buf;
+        src.playbackRate.value = rate;
+        const g = clipGainLinear(c);
+        const fInRaw = clipFadeInSec(c);
+        const fOutRaw = clipFadeOutSec(c);
+        const needGain = g !== 1 || fInRaw > 0 || fOutRaw > 0;
+        if (needGain) {
+          const gNode = playCtx.createGain();
+          const wallLen = tlPlaySec;
+          const wallEndNode = when + wallLen;
+          const fInTL = fInRaw / rate;
+          const fOutTL = fOutRaw / rate;
+          const origFadeInEnd = tAudStart + fInTL;
+          const origFadeOutStart = tAudStart + tlPlay - fOutTL;
+          let gStart = g;
+          if (fInTL > 0) {
+            if (from >= origFadeInEnd) gStart = g;
+            else if (from <= tAudStart) gStart = 0;
+            else gStart = g * ((from - tAudStart) / fInTL);
+          }
+          gNode.gain.setValueAtTime(gStart, when);
+          if (fInTL > 0 && from < origFadeInEnd) {
+            const fInTarget = when + Math.max(0, origFadeInEnd - Math.max(from, tAudStart));
+            gNode.gain.linearRampToValueAtTime(g, Math.min(fInTarget, wallEndNode));
+          }
+          if (fOutTL > 0) {
+            const fOutStartWall = when + Math.max(0, origFadeOutStart - Math.max(from, tAudStart));
+            if (fOutStartWall < wallEndNode) {
+              gNode.gain.setValueAtTime(g, Math.max(when, fOutStartWall));
+              gNode.gain.linearRampToValueAtTime(0, wallEndNode);
+            }
+          }
+          src.connect(gNode).connect(playCtx.destination);
+        } else {
+          src.connect(playCtx.destination);
+        }
+        src.start(when, bufOff, bufPlaySec);
+        const wallEnd = when + tlPlaySec;
+        if (wallEnd > mixEndWall) mixEndWall = wallEnd;
+        scheduled++;
+      }
+      mixPlayT0 = t0;
+      mixPlayFrom = from;
+      mixPlayRate = 1;
+      playLineSec = from;
+      updatePlayLineEl();
+      setPlayLineVisible(scheduled > 0);
+      stopPlayLineAnim();
+      if (scheduled > 0) {
+        playLineRaf = requestAnimationFrame(playMixTick);
+      } else {
+        try { playCtx.close(); } catch (_) {}
+        playCtx = null;
+      }
+      setStatus(
+        scheduled
+          ? "从 " + fmtTime(from) + "（黄线）起播，到 " + fmtTime(endAt) + "（红线）停 · 绿线为进度 · 每个片段使用各自的『音速』"
+          : "黄线 " +
+              fmtTime(from) +
+              " ～ 红线 " + fmtTime(endAt) +
+              " 区间内没有可播片段。"
+      );
+    });
+
+    function encodeWavPcm16Mono(float32, sampleRate) {
+      const n = float32.length;
+      const int16 = new Int16Array(n);
+      for (let i = 0; i < n; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      const buffer = new ArrayBuffer(44 + int16.byteLength);
+      const view = new DataView(buffer);
+      const wstr = (off, s) => {
+        for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+      };
+      wstr(0, "RIFF");
+      view.setUint32(4, 36 + int16.byteLength, true);
+      wstr(8, "WAVE");
+      wstr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      wstr(36, "data");
+      view.setUint32(40, int16.byteLength, true);
+      new Int16Array(buffer, 44).set(int16);
+      return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    // === RAW (JSON) 视图：仅作用于"台词与生成"表格（lineRows） ===================
+    // 顶层结构：JSON 数组，每项 { characterName, text, cfgValue, inferenceTimesteps, batchSelected }
+    // 运行态字段（id/buffer/ttsCacheBadge）不写入；characterName 字符串匹配 characters[]
+    // 名字找不到时回落到 0 号角色并在状态栏提示。
+    function linesRowsToJson() {
+      return lineRows.map((row) => {
+        const ch = characters[row.charIndex];
+        return {
+          characterName: ch ? String(ch.name || "").trim() : "",
+          text: row.text || "",
+          cfgValue: numOr(row.cfgValue, 2),
+          inferenceTimesteps: Math.round(numOr(row.inferenceTimesteps, 10)),
+          batchSelected: row.batchSelected !== false,
+        };
+      });
+    }
+
+    /**
+     * 把 RAW textarea 里的 JSON 数组回写到 lineRows。
+     * 抛出 Error 表示校验失败；返回 {applied, missingNames} 用于状态栏提示。
+     */
+    function applyLinesFromJson(rawText) {
+      let arr;
+      try {
+        arr = JSON.parse(String(rawText || "[]"));
+      } catch (err) {
+        throw new Error("JSON 解析失败：" + (err && err.message ? err.message : String(err)));
+      }
+      if (!Array.isArray(arr)) throw new Error("顶层必须是数组 [ { ... }, ... ]");
+      const missingNames = new Set();
+      const rows = arr.map((spec) => {
+        if (spec == null || typeof spec !== "object") throw new Error("数组元素必须是对象 { ... }");
+        const name = String(spec.characterName != null ? spec.characterName : "").trim();
+        let ci = 0;
+        if (name) {
+          const i = characters.findIndex((c) => String(c.name || "").trim() === name);
+          if (i >= 0) ci = i;
+          else missingNames.add(name);
+        }
+        return {
+          id: uid(),
+          charIndex: ci,
+          text: String(spec.text != null ? spec.text : ""),
+          cfgValue: numOr(spec.cfgValue, 2),
+          inferenceTimesteps: Math.round(numOr(spec.inferenceTimesteps, 10, 1, 60)),
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: spec.batchSelected !== false,
+        };
+      });
+      if (!rows.length) {
+        rows.push({
+          id: uid(),
+          charIndex: 0,
+          text: "",
+          cfgValue: 2,
+          inferenceTimesteps: 10,
+          buffer: null,
+          ttsCacheBadge: "none",
+          batchSelected: true,
+        });
+      }
+      lineRows = rows;
+      renderLineRows();
+      return { applied: rows.length, missingNames: Array.from(missingNames) };
+    }
+
+    // --- RAW(JSON) 视图切换 ------------------------------------------------------
+    const _rawEls = {
+      toggle: document.getElementById("btnToggleLinesRaw"),
+      tableView: document.getElementById("linesTableView"),
+      rawView: document.getElementById("linesRawView"),
+      textarea: document.getElementById("linesRawText"),
+      status: document.getElementById("linesRawStatus"),
+      apply: document.getElementById("btnApplyLinesRaw"),
+      format: document.getElementById("btnFormatLinesRaw"),
+      reload: document.getElementById("btnReloadLinesRaw"),
+    };
+    let _rawMode = false;
+    // 切进 RAW 时记录原始文本，用于检测"有未应用编辑"
+    let _rawSnapshot = "";
+
+    function setRawStatus(msg, tone) {
+      if (!_rawEls.status) return;
+      _rawEls.status.textContent = msg || "";
+      _rawEls.status.style.color = tone === "err" ? "#f87171" : tone === "ok" ? "#4ade80" : "var(--muted)";
+    }
+
+    function enterRawMode() {
+      const json = JSON.stringify(linesRowsToJson(), null, 2);
+      _rawEls.textarea.value = json;
+      _rawSnapshot = json;
+      _rawEls.tableView.style.display = "none";
+      _rawEls.rawView.style.display = "";
+      const lab = document.getElementById("btnToggleLinesRawLab");
+      if (lab) lab.textContent = "切换回 表格视图";
+      _rawEls.toggle.setAttribute("aria-pressed", "true");
+      _rawMode = true;
+      setRawStatus("已从当前表格生成 JSON。编辑后点「应用 JSON」生效。");
+    }
+
+    function leaveRawMode(force) {
+      // 未应用编辑时要求确认，避免默默吞掉改动
+      if (!force && _rawEls.textarea.value !== _rawSnapshot) {
+        const ok = confirm("RAW 里有未应用的修改，切回表格视图将丢弃。确定继续？");
+        if (!ok) return false;
+      }
+      _rawEls.rawView.style.display = "none";
+      _rawEls.tableView.style.display = "";
+      const lab2 = document.getElementById("btnToggleLinesRawLab");
+      if (lab2) lab2.textContent = "切换到 RAW(JSON) 视图";
+      _rawEls.toggle.setAttribute("aria-pressed", "false");
+      _rawMode = false;
+      setRawStatus("");
+      return true;
+    }
+
+    _rawEls.toggle.addEventListener("click", () => {
+      if (_rawMode) leaveRawMode(false);
+      else enterRawMode();
+    });
+
+    _rawEls.apply.addEventListener("click", () => {
+      try {
+        const res = applyLinesFromJson(_rawEls.textarea.value);
+        // 回写规范化后的 JSON（确保下次切回不会误判"有修改"）
+        const normalized = JSON.stringify(linesRowsToJson(), null, 2);
+        _rawEls.textarea.value = normalized;
+        _rawSnapshot = normalized;
+        let msg = "已应用：" + res.applied + " 行。";
+        if (res.missingNames.length) {
+          msg += "未匹配角色名：" + res.missingNames.join("、") + "（已回落到 0 号角色）。";
+          setRawStatus(msg, "err");
+          setStatus(msg);
+        } else {
+          setRawStatus(msg, "ok");
+          setStatus("RAW JSON 已应用到台词表。");
+        }
+      } catch (err) {
+        setRawStatus(String(err && err.message ? err.message : err), "err");
+      }
+    });
+
+    _rawEls.format.addEventListener("click", () => {
+      try {
+        const obj = JSON.parse(_rawEls.textarea.value || "[]");
+        _rawEls.textarea.value = JSON.stringify(obj, null, 2);
+        setRawStatus("已格式化（未应用，仍需点「应用 JSON」）。", "ok");
+      } catch (err) {
+        setRawStatus("格式化失败：" + (err && err.message ? err.message : err), "err");
+      }
+    });
+
+    _rawEls.reload.addEventListener("click", () => {
+      const fresh = JSON.stringify(linesRowsToJson(), null, 2);
+      _rawEls.textarea.value = fresh;
+      _rawSnapshot = fresh;
+      setRawStatus("已从当前表格重载。", "ok");
+    });
+
+    document.getElementById("btnExport").addEventListener("click", () => {
+      const firstBufClip = clips.find((c) => c.buffer);
+      if (!firstBufClip) {
+        setStatus("没有可导出的时间线片段。");
+        return;
+      }
+      const sr = firstBufClip.buffer.sampleRate;
+      const endCap = Math.max(0, Math.min(axisEndSec, playEndSec));
+      if (endCap <= 0) {
+        setStatus("红线位置为 0，无法导出。请拖动红线到右侧。");
+        return;
+      }
+      let end = 1;
+      for (const c of clips) {
+        if (!c.buffer) continue;
+        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c));
+      }
+      end = Math.min(end, endCap);
+      const n = Math.ceil(end * sr);
+      const acc = new Float32Array(n);
+      for (const c of clips) {
+        if (!c.buffer) continue;
+        if (c.buffer.sampleRate !== sr) {
+          setStatus("片段采样率不一致，无法安全混音。请确保均来自同一服务。");
+          return;
+        }
+        const data = c.buffer.getChannelData(0);
+        const trimIn = c.trimIn || 0;
+        const midI = c.midIn || 0;
+        const rate = clipRateFactor(c);
+        /** 素材可播长度（秒） */
+        const rawPlay = clipPlayDur(c);
+        /** 时间线占用长度（秒） = rawPlay / rate */
+        const tlPlay = rawPlay / rate;
+        const tAudStart = clipTimelineLeftSec(c);
+        if (tAudStart >= endCap) continue;
+        const effTlLen = Math.max(0, Math.min(tlPlay, endCap - tAudStart));
+        if (effTlLen <= 0) continue;
+        const iBuf0 = Math.floor((trimIn + midI) * sr);
+        const len = Math.floor(effTlLen * sr);
+        const off = Math.floor(tAudStart * sr);
+        const gLin = clipGainLinear(c);
+        const fInRaw = clipFadeInSec(c);
+        const fOutRaw = clipFadeOutSec(c);
+        /** 时间线域的 fade 长度（秒）= 源域 / rate */
+        const fInTL = fInRaw / rate;
+        const fOutTL = fOutRaw / rate;
+        const fadeInSamples = Math.floor(fInTL * sr);
+        const fadeOutStartTL = tlPlay - fOutTL;
+        const fadeOutStartSample = Math.floor(fadeOutStartTL * sr);
+        const tlPlaySamples = Math.floor(tlPlay * sr);
+        const srcDataLen = data.length;
+        for (let i = 0; i < len; i++) {
+          const bi = iBuf0 + Math.floor(i * rate);
+          const ti = off + i;
+          if (bi < 0 || bi >= srcDataLen || ti < 0 || ti >= n) continue;
+          let env = gLin;
+          if (fadeInSamples > 0 && i < fadeInSamples) {
+            env *= i / fadeInSamples;
+          }
+          if (fOutTL > 0 && i > fadeOutStartSample) {
+            const tail = tlPlaySamples - fadeOutStartSample;
+            const k = Math.max(0, tlPlaySamples - i);
+            env *= tail > 0 ? k / tail : 0;
+          }
+          acc[ti] += data[bi] * env;
+        }
+      }
+      let peak = 0;
+      for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(acc[i]));
+      const g = peak > 1 ? 0.99 / peak : peak > 0 ? 0.99 / peak : 1;
+      for (let i = 0; i < n; i++) acc[i] *= g;
+
+      const blob = encodeWavPcm16Mono(acc, sr);
+      const name = `dubbing_mix_${new Date().toISOString().replace(/[:.]/g, "-")}.wav`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      setStatus(
+        "已导出 " + name + "（单声道，多轨按采样相加后峰值归一；总长 " +
+          fmtTime(end) + "，红线截止于 " + fmtTime(endCap) + "）"
+      );
+    });
+
+    fetch(API + "/api/health")
+      .then((r) => r.json())
+      .then((j) => {
+        sampleRate = j.sample_rate || sampleRate;
+        setStatus("服务就绪 · sample_rate=" + sampleRate + " · " + (j.model || ""));
+      })
+      .catch(() => setStatus("无法连接服务：请先运行 python dubbing_server.py"));
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (!selectedClipId) return;
+      const t = e.target;
+      const tag = t && t.nodeName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (t && typeof t.closest === "function" && t.closest("input, textarea, select")) return;
+      e.preventDefault();
+      const victim = clips.find((c) => c.id === selectedClipId);
+      const label = victim && victim.kind === "bg"
+        ? ("背景音「" + (victim.roleName || "?") + "」")
+        : "选中片段";
+      clips = clips.filter((c) => c.id !== selectedClipId);
+      selectedClipId = null;
+      renderTimeline();
+      setStatus("已删除" + label + "。");
+    });
+
+    initClipTrimBarListeners();
+    document.getElementById("btnTrimPreview").addEventListener("click", () => {
+      playTrimBarPreview();
+    });
+
+    initScriptBatchControls();
+    defaultChars();
+    defaultLineRows();
+    renderBgTable();
+    renderCharTable();
+    renderLineRows();
+    renderTimeline();
+  </script>
+</body>
+</html>

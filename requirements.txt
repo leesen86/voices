@@ -1,0 +1,8 @@
+voxcpm
+torch>=2.5
+transformers>=4.40
+numpy>=1.26
+soundfile>=0.12
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.5
