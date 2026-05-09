@@ -514,6 +514,11 @@
       border: 1px solid #1d4ed8;
       animation: rowPlayPulse 0.9s ease-in-out infinite;
     }
+    .row-play-ico.is-play-paused {
+      color: #fff;
+      background: #d97706;
+      border: 1px solid #b45309;
+    }
     @keyframes rowPlayPulse {
       0%, 100% { transform: scale(1); opacity: 1; }
       50% { transform: scale(0.92); opacity: 0.88; }
@@ -1448,8 +1453,12 @@
     /** @type {{ id: string, charIndex: number, text: string, cfgValue: number, inferenceTimesteps: number, ttsSeed: number, buffer: AudioBuffer | null, ttsCacheBadge?: "none"|"fresh"|"hit"|"error", batchSelected?: boolean, _generating?: boolean }[]} */
     let lineRows = [];
     let previewCtx = null;
-    /** 正在用「本行播放」试听的那一行 id（与 trim 条试听互斥，见 stopPlay） */
+    /** 正在用「本行播放」试听的那一行 id（与 trim 条试听互斥，见 stopPlay）；含已暂停（previewCtx 仍打开） */
     let rowPreviewPlayingId = null;
+    /** 正在试听参考音的角色 id（与 previewCtx 对应；含已暂停） */
+    let previewCharActiveId = null;
+    /** 正在试听「其它音轨」的轨 id（与 previewCtx 对应；含已暂停） */
+    let previewBgActiveId = null;
     /** 台词行「定位」：下一轮要选中的序号（对应该行在时间线上已添加片段列表，按时间排序后循环） */
     let locateLineClipNextIdx = Object.create(null);
 
@@ -2297,7 +2306,7 @@
       lineRows.forEach((r) => syncRowPlayUi(r.id));
     }
 
-    /** 同步「播放」按钮：左侧图标表示状态，文案固定为「播放」 */
+    /** 同步「播放」按钮：图标为 ▶ / ⏸（播放中可点暂停）/ 暂停后 ▶ 继续；文案固定为「播放」 */
     function syncRowPlayUi(rowId) {
       const row = lineRows.find((r) => r.id === rowId);
       const tr = document.querySelector('tr[data-line-row-id="' + String(rowId).replace(/"/g, "") + '"]');
@@ -2320,14 +2329,26 @@
         return;
       }
       btn.disabled = false;
-      if (rowPreviewPlayingId === rowId) {
-        if (ico) {
-          ico.textContent = "\u266A";
-          ico.className = "row-play-ico is-play-active";
+      if (rowPreviewPlayingId === rowId && previewCtx) {
+        const st = previewCtx.state;
+        if (st === "suspended") {
+          if (ico) {
+            ico.textContent = "\u25B6";
+            ico.className = "row-play-ico is-play-paused";
+          }
+          btn.title = "已暂停 · 再点击继续试听本行";
+          if (exBtn) exBtn.disabled = false;
+          return;
         }
-        btn.title = "正在播放本行预览…";
-        if (exBtn) exBtn.disabled = false;
-        return;
+        if (st === "running") {
+          if (ico) {
+            ico.textContent = "\u23F8";
+            ico.className = "row-play-ico is-play-active";
+          }
+          btn.title = "正在播放 · 再点击暂停";
+          if (exBtn) exBtn.disabled = false;
+          return;
+        }
       }
       if (ico) {
         ico.textContent = "\u25B6";
@@ -2335,6 +2356,60 @@
       }
       btn.title = "点击试听本行";
       if (exBtn) exBtn.disabled = false;
+    }
+
+    function syncCharPlayUi(charId) {
+      const btn = document.querySelector(
+        'button[data-char-play="' + String(charId).replace(/"/g, "") + '"]'
+      );
+      if (!btn) return;
+      const ico = btn.querySelector(".tb-ico");
+      if (previewCharActiveId === charId && previewCtx) {
+        const st = previewCtx.state;
+        if (st === "suspended") {
+          if (ico) ico.textContent = "\u25B6";
+          btn.title = "已暂停 · 再点击继续试听参考 wav";
+          return;
+        }
+        if (st === "running") {
+          if (ico) ico.textContent = "\u23F8";
+          btn.title = "正在播放 · 再点击暂停";
+          return;
+        }
+      }
+      if (ico) ico.textContent = "\u25B6";
+      btn.title = "试听参考 wav";
+    }
+
+    function syncAllCharPlayUi() {
+      characters.forEach((c) => syncCharPlayUi(c.id));
+    }
+
+    function syncBgPlayUi(trackId) {
+      const btn = document.querySelector(
+        'button[data-bg-play="' + String(trackId).replace(/"/g, "") + '"]'
+      );
+      if (!btn) return;
+      const ico = btn.querySelector(".tb-ico");
+      if (previewBgActiveId === trackId && previewCtx) {
+        const st = previewCtx.state;
+        if (st === "suspended") {
+          if (ico) ico.textContent = "\u25B6";
+          btn.title = "已暂停 · 再点击继续试听";
+          return;
+        }
+        if (st === "running") {
+          if (ico) ico.textContent = "\u23F8";
+          btn.title = "正在播放 · 再点击暂停";
+          return;
+        }
+      }
+      if (ico) ico.textContent = "\u25B6";
+      btn.title = "试听本轨音频";
+    }
+
+    function syncAllBgPlayUi() {
+      bgTracks.forEach((t) => syncBgPlayUi(t.id));
     }
 
     function syncLineRowLocateButton(rowId) {
@@ -2776,6 +2851,7 @@
         });
       });
       renderLineRows();
+      syncAllCharPlayUi();
       persistCharacters();
     }
 
@@ -3155,6 +3231,12 @@
       const prevPid = rowPreviewPlayingId;
       rowPreviewPlayingId = null;
       if (prevPid) syncRowPlayUi(prevPid);
+      const prevC = previewCharActiveId;
+      const prevB = previewBgActiveId;
+      previewCharActiveId = null;
+      previewBgActiveId = null;
+      if (prevC) syncCharPlayUi(prevC);
+      if (prevB) syncBgPlayUi(prevB);
       row._generating = true;
       syncRowGenUi(rowId);
       setStatus("生成中…");
@@ -3230,6 +3312,28 @@
         setStatus("该行尚未生成，请先点「生成」。");
         return;
       }
+      if (rowPreviewPlayingId === rowId && previewCtx) {
+        try {
+          if (previewCtx.state === "suspended") {
+            await previewCtx.resume();
+            setStatus("继续播放本行预览…");
+            syncRowPlayUi(rowId);
+            return;
+          }
+          if (previewCtx.state === "running") {
+            await previewCtx.suspend();
+            setStatus("已暂停本行预览。");
+            syncRowPlayUi(rowId);
+            return;
+          }
+        } catch (_) {}
+      }
+      const prevC = previewCharActiveId;
+      const prevB = previewBgActiveId;
+      previewCharActiveId = null;
+      previewBgActiveId = null;
+      if (prevC) syncCharPlayUi(prevC);
+      if (prevB) syncBgPlayUi(prevB);
       const prevPlaying = rowPreviewPlayingId;
       if (previewCtx) {
         try {
@@ -3243,17 +3347,27 @@
       syncRowPlayUi(rowId);
       const AC = window.AudioContext || window.webkitAudioContext;
       previewCtx = new AC({ sampleRate: row.buffer.sampleRate });
+      if (previewCtx.state === "suspended") {
+        try {
+          await previewCtx.resume();
+        } catch (_) {}
+      }
       const src = previewCtx.createBufferSource();
       src.buffer = row.buffer;
       src.connect(previewCtx.destination);
       src.onended = () => {
         if (rowPreviewPlayingId === rowId) {
           rowPreviewPlayingId = null;
+          try {
+            if (previewCtx) previewCtx.close();
+          } catch (_) {}
+          previewCtx = null;
           syncRowPlayUi(rowId);
         }
       };
       src.start();
       setStatus("正在播放本行预览…");
+      syncRowPlayUi(rowId);
     }
 
     /** 导出该台词行已生成的整段音频为单声道 WAV（与试听同源 buffer） */
@@ -4701,6 +4815,22 @@
 
     /** 试听角色参考音：优先内存缓冲，否则按路径从服务端读取 */
     async function playCharRefTrack(charId) {
+      if (previewCharActiveId === charId && previewCtx) {
+        try {
+          if (previewCtx.state === "suspended") {
+            await previewCtx.resume();
+            setStatus("继续播放参考音…");
+            syncCharPlayUi(charId);
+            return;
+          }
+          if (previewCtx.state === "running") {
+            await previewCtx.suspend();
+            setStatus("已暂停参考音。");
+            syncCharPlayUi(charId);
+            return;
+          }
+        } catch (_) {}
+      }
       stopPlay();
       syncCharRefInputFromDom(charId);
       const ch = characters.find((x) => x.id === charId);
@@ -4731,24 +4861,57 @@
         }
         const AC = window.AudioContext || window.webkitAudioContext;
         previewCtx = new AC({ sampleRate: buf.sampleRate });
+        previewCharActiveId = charId;
+        previewBgActiveId = null;
+        syncAllBgPlayUi();
+        if (previewCtx.state === "suspended") {
+          try {
+            await previewCtx.resume();
+          } catch (_) {}
+        }
         const src = previewCtx.createBufferSource();
         src.buffer = buf;
         src.connect(previewCtx.destination);
         src.onended = () => {
+          previewCharActiveId = null;
           try {
             previewCtx.close();
           } catch (_) {}
           previewCtx = null;
+          syncCharPlayUi(charId);
         };
         src.start();
         setStatus("播放参考音：「" + (ch.name || "?").slice(0, 28) + "」· 约 " + buf.duration.toFixed(2) + " s");
+        syncCharPlayUi(charId);
       } catch (err) {
+        if (previewCharActiveId === charId) previewCharActiveId = null;
+        try {
+          if (previewCtx) previewCtx.close();
+        } catch (_) {}
+        previewCtx = null;
+        syncCharPlayUi(charId);
         setStatus("播放失败：" + (err && err.message ? err.message : String(err)));
       }
     }
 
     /** 试听其它音轨素材：已解码则直接播，否则先按路径载入 */
     async function playBgTrackPreview(trackId) {
+      if (previewBgActiveId === trackId && previewCtx) {
+        try {
+          if (previewCtx.state === "suspended") {
+            await previewCtx.resume();
+            setStatus("继续播放音轨…");
+            syncBgPlayUi(trackId);
+            return;
+          }
+          if (previewCtx.state === "running") {
+            await previewCtx.suspend();
+            setStatus("已暂停音轨试听。");
+            syncBgPlayUi(trackId);
+            return;
+          }
+        } catch (_) {}
+      }
       stopPlay();
       syncBgTrackInputsFromDom(trackId);
       const t = bgTracks.find((x) => x.id === trackId);
@@ -4772,19 +4935,36 @@
         }
         const AC = window.AudioContext || window.webkitAudioContext;
         previewCtx = new AC({ sampleRate: buf.sampleRate });
+        previewBgActiveId = trackId;
+        previewCharActiveId = null;
+        syncAllCharPlayUi();
+        if (previewCtx.state === "suspended") {
+          try {
+            await previewCtx.resume();
+          } catch (_) {}
+        }
         const src = previewCtx.createBufferSource();
         src.buffer = buf;
         src.connect(previewCtx.destination);
         src.onended = () => {
+          previewBgActiveId = null;
           try {
             previewCtx.close();
           } catch (_) {}
           previewCtx = null;
+          syncBgPlayUi(trackId);
         };
         src.start();
         const lab = (t.note || path || "?").slice(0, 48);
         setStatus("播放音轨：「" + lab + (lab.length >= 48 ? "…" : "") + "」· 约 " + buf.duration.toFixed(2) + " s");
+        syncBgPlayUi(trackId);
       } catch (err) {
+        if (previewBgActiveId === trackId) previewBgActiveId = null;
+        try {
+          if (previewCtx) previewCtx.close();
+        } catch (_) {}
+        previewCtx = null;
+        syncBgPlayUi(trackId);
         setStatus("播放失败：" + (err && err.message ? err.message : String(err)));
       }
     }
@@ -4937,6 +5117,7 @@
           }
         });
       });
+      syncAllBgPlayUi();
       persistBgTracks();
     }
 
@@ -4998,13 +5179,19 @@
         try { playCtx.close(); } catch (_) {}
         playCtx = null;
       }
+      const rid = rowPreviewPlayingId;
+      const cid = previewCharActiveId;
+      const bid = previewBgActiveId;
+      rowPreviewPlayingId = null;
+      previewCharActiveId = null;
+      previewBgActiveId = null;
       if (previewCtx) {
         try { previewCtx.close(); } catch (_) {}
         previewCtx = null;
       }
-      const rid = rowPreviewPlayingId;
-      rowPreviewPlayingId = null;
       if (rid) syncRowPlayUi(rid);
+      if (cid) syncCharPlayUi(cid);
+      if (bid) syncBgPlayUi(bid);
       pauseSyncVideoAfterStop();
     }
 
