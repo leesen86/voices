@@ -1352,7 +1352,12 @@
         <button type="button" class="toolbar-btn toolbar-row-del" id="btnClearTimeline" title="清空时间线上所有片段（台词与背景音），并把黄线/红线重置">
           <span class="tb-ico" aria-hidden="true">✕</span><span class="tb-lab">清除音频</span>
         </button>
-        <button type="button" class="toolbar-btn toolbar-row-export" id="btnExport">
+        <button
+          type="button"
+          class="toolbar-btn toolbar-row-export"
+          id="btnExport"
+          title="导出时间线总混音：与「播放音频」相同区间——从黄线起至红线止，未静音轨道叠加为单声道 WAV"
+        >
           <span class="tb-ico" aria-hidden="true">⬇</span><span class="tb-lab">导出音频</span>
         </button>
         <button type="button" class="toolbar-btn toolbar-transport-vid" id="btnExportVideo">
@@ -5339,22 +5344,18 @@
     });
 
     /**
-     * 与「导出总轨 WAV」相同的混音：时间线 0～mixEndSec（不超过红线 endCap）。
+     * 时间线总混音（单声道）：0 秒起至红线 endCap；多轨叠加，空白与红线后补静音（与「播放音频」同一叠加规则，总长与红线对齐）。
      * @returns {{ ok: true, acc: Float32Array, sr: number, mixEndSec: number } | { ok: false, err: string }}
      */
     function mixTimelineMonoForExport() {
       const firstBufClip = clips.find((c) => c.buffer);
-      if (!firstBufClip) return { ok: false, err: "没有可导出的时间线片段。" };
+      if (!firstBufClip) return { ok: false, err: "时间线上没有可混音的片段（请先添加台词或背景音到时间线）。" };
       const sr = firstBufClip.buffer.sampleRate;
       const endCap = Math.max(0, Math.min(axisEndSec, playEndSec));
       if (endCap <= 0) return { ok: false, err: "红线位置为 0，无法导出。请拖动红线到右侧。" };
-      let end = 1;
-      for (const c of clips) {
-        if (!c.buffer) continue;
-        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c));
-      }
-      end = Math.min(end, endCap);
-      const n = Math.ceil(end * sr);
+      /** 总音轨长度与红线一致；若红线晚于最后一轨，尾部为静音 */
+      const mixEndSec = endCap;
+      const n = Math.ceil(mixEndSec * sr);
       const acc = new Float32Array(n);
       for (const c of clips) {
         if (!c.buffer) continue;
@@ -5405,7 +5406,7 @@
       for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(acc[i]));
       const g = peak > 1 ? 0.99 / peak : peak > 0 ? 0.99 / peak : 1;
       for (let i = 0; i < n; i++) acc[i] *= g;
-      return { ok: true, acc, sr, mixEndSec: end };
+      return { ok: true, acc, sr, mixEndSec };
     }
 
     function encodeWavPcm16Mono(float32, sampleRate) {
@@ -5601,16 +5602,34 @@
     });
 
     document.getElementById("btnExport").addEventListener("click", () => {
+      axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
       const mix = mixTimelineMonoForExport();
       if (!mix.ok) {
         setStatus(mix.err);
         return;
       }
-      const { acc, sr, mixEndSec: end } = mix;
-      const endCap = Math.max(0, Math.min(axisEndSec, playEndSec));
-
-      const blob = encodeWavPcm16Mono(acc, sr);
-      const name = `dubbing_mix_${new Date().toISOString().replace(/[:.]/g, "-")}.wav`;
+      const { acc, sr } = mix;
+      /** 与「播放音频」一致：黄线～红线（同 exportTimelineVideo 取音轨区间） */
+      const from = Math.max(0, Math.min(axisEndSec, playheadSec));
+      let pe = playEndSec;
+      if (!Number.isFinite(pe) || pe <= 0) pe = axisEndSec;
+      pe = Math.max(0, Math.min(axisEndSec, pe));
+      if (pe < from) pe = axisEndSec;
+      const endAt = Math.max(from, pe);
+      if (endAt <= from) {
+        setStatus("红线不在黄线之后：请把红线拖到黄线右边后再导出。");
+        return;
+      }
+      const exportDur = endAt - from;
+      const nOut = Math.max(1, Math.ceil(exportDur * sr));
+      const out = new Float32Array(nOut);
+      const i0 = Math.floor(from * sr);
+      for (let i = 0; i < nOut; i++) {
+        const idx = i0 + i;
+        out[i] = idx >= 0 && idx < acc.length ? acc[idx] : 0;
+      }
+      const blob = encodeWavPcm16Mono(out, sr);
+      const name = `dubbing_timeline_master_${new Date().toISOString().replace(/[:.]/g, "-")}.wav`;
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = name;
@@ -5619,8 +5638,13 @@
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
       setStatus(
-        "已导出 " + name + "（单声道，多轨按采样相加后峰值归一；总长 " +
-          fmtTime(end) + "，红线截止于 " + fmtTime(endCap) + "）"
+        "已导出时间线总混音 " +
+          name +
+          "（单声道；黄线 " +
+          fmtTime(from) +
+          "～红线 " +
+          fmtTime(endAt) +
+          "，与「播放音频」区间一致；多轨叠加后峰值归一）"
       );
     });
 
