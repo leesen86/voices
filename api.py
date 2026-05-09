@@ -8,6 +8,7 @@ VoxCPM2 配音工作台 — 仅 HTTP API（无静态页）。
 from __future__ import annotations
 
 import hashlib
+import inspect
 import io
 import json
 import os
@@ -28,6 +29,10 @@ class RenderBody(BaseModel):
     role_name: str = Field("", description="角色名，仅用于日志/展示，不参与缓存 md5")
     cfg_value: float = Field(2.0)
     inference_timesteps: int = Field(10)
+    tts_seed: int = Field(
+        0,
+        description="随机种子：参与磁盘缓存文件名 md5；相同台词/参考/cfg/步数下不同种子为不同缓存项",
+    )
 
 
 class CacheDigestItem(BaseModel):
@@ -35,6 +40,7 @@ class CacheDigestItem(BaseModel):
     text: str = ""
     cfg_value: float = Field(2.0)
     inference_timesteps: int = Field(10)
+    tts_seed: int = Field(0)
 
 
 class CacheDigestBatch(BaseModel):
@@ -94,12 +100,14 @@ def _tts_cache_payload(
     text: str,
     cfg_value: float,
     inference_timesteps: int,
+    tts_seed: int,
 ) -> bytes:
     payload = {
         "ref": _norm_ref_path(reference_wav_path),
         "text": _norm_txt(text),
         "cfg": round(float(cfg_value), 6),
         "steps": int(inference_timesteps),
+        "seed": int(tts_seed),
     }
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -109,9 +117,10 @@ def _tts_cache_digest(
     text: str,
     cfg_value: float,
     inference_timesteps: int,
+    tts_seed: int,
 ) -> str:
     return hashlib.md5(
-        _tts_cache_payload(reference_wav_path, text, cfg_value, inference_timesteps)
+        _tts_cache_payload(reference_wav_path, text, cfg_value, inference_timesteps, tts_seed)
     ).hexdigest()
 
 
@@ -120,8 +129,9 @@ def _tts_cache_wav_path(
     text: str,
     cfg_value: float,
     inference_timesteps: int,
+    tts_seed: int,
 ) -> Path:
-    name = _tts_cache_digest(reference_wav_path, text, cfg_value, inference_timesteps) + ".wav"
+    name = _tts_cache_digest(reference_wav_path, text, cfg_value, inference_timesteps, tts_seed) + ".wav"
     return _tts_cache_dir() / name
 
 
@@ -243,7 +253,7 @@ def create_app():
         flush=True,
     )
     print(
-        "[api] 文件名: <md5(角色路径+台词+cfg+步数)>.wav；环境变量 VOXCPM_TTS_CACHE_DIR 可改为例如 D:\\\\cache 或 /tmp",
+        "[api] 文件名: <md5(参考路径+台词+cfg+步数+tts_seed)>.wav；环境变量 VOXCPM_TTS_CACHE_DIR 可改为例如 D:\cache 或 /tmp",
         flush=True,
     )
 
@@ -272,7 +282,7 @@ def create_app():
             raise HTTPException(status_code=400, detail=f"参考音频不存在: {ref}")
 
         ref_s = str(ref.resolve())
-        cache_path = _tts_cache_wav_path(ref_s, text, req.cfg_value, req.inference_timesteps)
+        cache_path = _tts_cache_wav_path(ref_s, text, req.cfg_value, req.inference_timesteps, req.tts_seed)
         digest = cache_path.stem
 
         if cache_path.is_file():
@@ -306,16 +316,44 @@ def create_app():
                 pass
         else:
             print(
-                f"[api] TTS 缓存未命中: 无文件 digest={digest[:16]}… path={cache_path}",
+                f"[api] TTS 缓存未命中: 无文件 digest={digest[:16]}… path={cache_path} seed={req.tts_seed}",
                 flush=True,
             )
 
-        wav = model.generate(
+        def _apply_tts_seed_for_inference(seed: int) -> None:
+            if seed == 0:
+                return
+            try:
+                import random
+
+                import numpy as np
+                import torch
+
+                s = int(seed)
+                torch.manual_seed(s)
+                if torch.cuda.is_available():
+                    torch.cuda.manual_seed_all(s)
+                random.seed(s & ((1 << 63) - 1))
+                np.random.seed(s % (2**32))
+            except Exception:
+                pass
+
+        _apply_tts_seed_for_inference(req.tts_seed)
+        _gen_kw = dict(
             text=text,
             reference_wav_path=ref_s,
             cfg_value=req.cfg_value,
             inference_timesteps=req.inference_timesteps,
         )
+        try:
+            sig = inspect.signature(model.generate)
+            if "seed" in sig.parameters:
+                _gen_kw["seed"] = int(req.tts_seed)
+            elif "random_seed" in sig.parameters:
+                _gen_kw["random_seed"] = int(req.tts_seed)
+        except (TypeError, ValueError):
+            pass
+        wav = model.generate(**_gen_kw)
         arr = np.asarray(wav, dtype=np.float32).reshape(-1)
 
         tmp = None
@@ -359,7 +397,7 @@ def create_app():
         for it in batch.items:
             ref = it.reference_wav_path or ""
             text = _norm_txt(it.text or "")
-            d = _tts_cache_digest(ref, text, it.cfg_value, it.inference_timesteps)
+            d = _tts_cache_digest(ref, text, it.cfg_value, it.inference_timesteps, it.tts_seed)
             out.append({"digest": d, "relativePath": f"tts_cache/{d}.wav"})
         return {"digests": out}
 
@@ -397,6 +435,3 @@ def create_app():
         return {"ok": True, "sample_rate": sr, "model": model_id}
 
     return app
-
-
-app = create_app()

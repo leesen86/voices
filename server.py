@@ -7,12 +7,16 @@ VoxCPM2 配音工作台 · 单进程一体化服务。
   3) web/static/dubbing_workbench.html —— 前端页面（同源直连，无 CORS）
 
 启动：
-  python server.py
-  # 浏览器打开 http://127.0.0.1:8770/           → 自动返回 dubbing_workbench.html
-  # 或        http://127.0.0.1:8770/dubbing_workbench.html
+  python server.py              # 默认：API + 静态前端（与原先一致）
+  python server.py all          # 同上
+  python server.py service      # 仅 API（create_app，便于单独调试推理 / HTTP 接口）
+  python server.py web          # 仅静态页与 /resolve_name（不加载 VoxCPM，便于调前端）
+  python server.py web 8771     # 同上，监听端口 8771（第二参数为可选端口，适用 all / service / web）
+
+  浏览器：http://127.0.0.1:8770/  → webui.html（仅 all/web 模式有意义；若自定义端口则换对应端口）
 
 环境变量：
-  VOXCPM_PORT / DUBBING_PORT   端口，默认 8770（两者都识别，前者优先）
+  VOXCPM_PORT / DUBBING_PORT   端口，默认 8770（两者都识别，前者优先；命令行若带第二参数 PORT 会覆盖并写入本进程的 VOXCPM_PORT）
   VOXCPM_HOST                  监听地址，默认 127.0.0.1
   VOXCPM_RELOAD                1/true/yes 时 uvicorn --reload（会反复加载模型，慎用）
   VOXCPM_AUDIO_SEARCH_DIRS     额外搜索目录（Windows 分号、*nix 冒号分隔），供 /resolve_name 使用
@@ -21,11 +25,12 @@ VoxCPM2 配音工作台 · 单进程一体化服务。
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from pathlib import Path
 
-from fastapi import Body, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError
@@ -137,8 +142,19 @@ def _register_web_routes(app) -> None:
         print(f"[server] 警告：前端目录不存在 {STATIC_DIR}", file=sys.stderr)
 
 
-app = create_app()
-_register_web_routes(app)
+def make_app() -> FastAPI:
+    """按 ``VOXCPM_RUN_MODE`` 组装应用：``all`` | ``service`` | ``web``（由 ``main()`` 在启动前写入环境变量）。"""
+    mode = (os.environ.get("VOXCPM_RUN_MODE") or "all").strip().lower()
+    if mode == "web":
+        app = FastAPI()
+        _register_web_routes(app)
+        return app
+    app = create_app()
+    if mode in ("", "all"):
+        _register_web_routes(app)
+    elif mode != "service":
+        raise ValueError(f"未知的 VOXCPM_RUN_MODE: {mode!r}，期望 all | service | web")
+    return app
 
 
 def main() -> None:
@@ -147,6 +163,32 @@ def main() -> None:
     except ImportError:
         print("请先安装: pip install uvicorn", file=sys.stderr)
         raise SystemExit(1)
+
+    parser = argparse.ArgumentParser(description="VoxCPM2 配音工作台 · 一体化服务")
+    parser.add_argument(
+        "mode",
+        nargs="?",
+        default="all",
+        choices=("all", "service", "web"),
+        help="all=API+前端（默认）；service=仅 API；web=仅静态与 resolve_name（不加载模型）",
+    )
+    parser.add_argument(
+        "listen_port",
+        nargs="?",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help="监听端口（可选，1–65535；指定后覆盖环境变量中的端口，例如：python server.py web 8771）",
+    )
+    args = parser.parse_args()
+    run_mode = args.mode
+    os.environ["VOXCPM_RUN_MODE"] = run_mode
+
+    if args.listen_port is not None:
+        if not (1 <= args.listen_port <= 65535):
+            print(f"端口无效: {args.listen_port}（须在 1–65535）", file=sys.stderr)
+            raise SystemExit(2)
+        os.environ["VOXCPM_PORT"] = str(args.listen_port)
 
     port_raw = os.environ.get("VOXCPM_PORT") or os.environ.get("DUBBING_PORT") or "8770"
     try:
@@ -157,16 +199,20 @@ def main() -> None:
     host = os.environ.get("VOXCPM_HOST", "127.0.0.1")
     use_reload = (os.environ.get("VOXCPM_RELOAD") or "").lower() in ("1", "true", "yes")
 
-    print(f"[server] VoxCPM2 一体化服务启动: http://{host}:{port}/", flush=True)
-    print(f"[server] 前端页面: http://{host}:{port}/{DEFAULT_PAGE}", flush=True)
+    if run_mode == "service":
+        print(f"[server] 模式: 仅 API（无静态前端）→ http://{host}:{port}/", flush=True)
+    elif run_mode == "web":
+        print(f"[server] 模式: 仅 Web（未加载 VoxCPM；/api 不可用）→ http://{host}:{port}/", flush=True)
+    else:
+        print(f"[server] VoxCPM2 一体化服务: http://{host}:{port}/", flush=True)
+        print(f"[server] 前端页面: http://{host}:{port}/{DEFAULT_PAGE}", flush=True)
     print(f"[server] 静态目录: {STATIC_DIR}", flush=True)
 
-    uvicorn.run(
-        "server:app" if use_reload else app,
-        host=host,
-        port=port,
-        reload=use_reload,
-    )
+    target = "server:make_app"
+    if use_reload:
+        uvicorn.run(target, factory=True, host=host, port=port, reload=True)
+    else:
+        uvicorn.run(make_app(), host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":
