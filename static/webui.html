@@ -1264,7 +1264,7 @@
     <section class="panel" id="timelineOuter">
       <h2>三、时间线（标尺 · 多轨 · 波形块）</h2>
       <p class="hint">
-      <strong style="color:#dc2626">红竖线</strong>为起播/编辑头可拖；<strong style="color:#16a34a">绿竖线</strong>为混音播放进度（仅播放时出现）。选中时间线音频块后按 <kbd>Enter</kbd> 播放, <kbd>Delete</kbd> 删除
+      <strong style="color:#dc2626">红竖线</strong>为起播/编辑头可拖；<strong style="color:#16a34a">绿竖线</strong>为混音播放进度（仅播放时出现）。选中时间线音频块后按 <kbd>Enter</kbd> 播放, <kbd>Delete</kbd> 删除。 按 <kbd>Space</kbd> 可以快速试听整轨。
       </p>
       <div class="row" style="align-items:center; display:none;" aria-hidden="true">
         <div style="flex:0 0 auto;">
@@ -1331,7 +1331,7 @@
           <span class="hint" id="clipAudioHint">选中背景音片段后可调节</span>
         </div>
       </div>
-      <div id="timelineScroll" tabindex="-1" aria-label="时间线区域，选中片段后可按 Delete 删除">
+      <div id="timelineScroll" tabindex="-1" aria-label="时间线区域：选中片段后 Delete 删除、Enter 试听该块；未在输入框内时 Space 从指针或黄线起混音播至红线">
         <div id="timelineInner"></div>
       </div>
       <div id="transport">
@@ -1343,7 +1343,7 @@
         >
           <span class="tb-ico" aria-hidden="true">🎬</span><span class="tb-lab">导入视频</span>
         </button>
-        <button type="button" class="toolbar-btn toolbar-row-play" id="btnPlay" disabled title="时间线上有片段时可从黄线起播，播放到红线停止">
+        <button type="button" class="toolbar-btn toolbar-row-play" id="btnPlay" disabled title="时间线上有片段时可从黄线起播，播放到红线停止；空格：鼠标在时间线内则从指针处快速试听（黄线不动），否则从黄线起播">
           <span class="tb-ico" aria-hidden="true">▶</span><span class="tb-lab">播放音频</span>
         </button>
         <button type="button" class="toolbar-btn toolbar-transport-stop" id="btnStop">
@@ -1487,6 +1487,9 @@
     let mixEndWall = 0;
     /** 本次混音播放的时间轴终点（秒）= 红线 endAt，供结束时把绿线对齐 */
     let mixPlayEndSec = 0;
+    /** 空格起播：指针最后在时间线滚动区内时的 clientX（离开区后仍用黄线） */
+    let lastTimelineHoverClientX = null;
+    let lastTimelineHoverInside = false;
     /** debounce 写入时间线 localStorage */
     let persistTimelineTimer = null;
     /** loadTimelineFromStorage 解析后的选中片段 id，待 hydrate 后再赋给 selectedClipId */
@@ -1513,6 +1516,18 @@
       const v = getComputedStyle(inner).getPropertyValue("--tl-label-w").trim();
       const n = parseFloat(v);
       return Number.isFinite(n) && n > 0 ? n : 120;
+    }
+
+    /** 时间 0 与标尺左缘相对 #timelineInner 的实际像素（含边框/子像素；用于黄线与 timeFromClientX 与波形对齐） */
+    function timelineRulerOriginPx() {
+      const inner = document.getElementById("timelineInner");
+      const ruler = document.getElementById("ruler");
+      if (!inner || !ruler) return timelineLabelPx();
+      const ir = inner.getBoundingClientRect();
+      const rr = ruler.getBoundingClientRect();
+      const d = rr.left - ir.left;
+      if (!Number.isFinite(d) || d < 1) return timelineLabelPx();
+      return d;
     }
 
     function timeToPx(t) {
@@ -1609,7 +1624,7 @@
       const startEl = document.getElementById("clipSelGuideStart");
       const endEl = document.getElementById("clipSelGuideEnd");
       if (!startEl || !endEl) return;
-      const lab = timelineLabelPx();
+      const ox = timelineRulerOriginPx();
       const c = selectedClipId ? clips.find((x) => x.id === selectedClipId) : null;
       if (!c || !c.buffer) {
         startEl.style.visibility = "hidden";
@@ -1618,8 +1633,8 @@
       }
       const t0 = clipTimelineLeftSec(c);
       const t1 = t0 + clipTimelinePlayDur(c);
-      startEl.style.left = lab + timeToPx(t0) + "px";
-      endEl.style.left = lab + timeToPx(t1) + "px";
+      startEl.style.left = ox + timeToPx(t0) + "px";
+      endEl.style.left = ox + timeToPx(t1) + "px";
       startEl.style.visibility = "visible";
       endEl.style.visibility = "visible";
     }
@@ -1750,7 +1765,7 @@
       if (btnPlay) {
         btnPlay.disabled = !clips.length;
         btnPlay.title = clips.length
-          ? "从黄线起播，到红线停止（含台词与背景音）"
+          ? "从黄线起播，到红线停止（含台词与背景音）；空格：鼠标在时间线内则从指针处快速试听（黄线不动）"
           : "时间线为空 · 请先生成台词片段，或在背景音表格点「添加到时间线」";
       }
       if (btnTrimPreview) {
@@ -2504,8 +2519,35 @@
       return bytes.buffer;
     }
 
+    /**
+     * 时间线上无任何片段时：与首屏一致的运输条状态（并取消防抖持久化，避免旧值写回 LS）。
+     * 不调用 renderTimeline；调用方在需要时自行重绘。
+     */
+    function resetTimelineTransportToDefaults() {
+      if (persistTimelineTimer) {
+        clearTimeout(persistTimelineTimer);
+        persistTimelineTimer = null;
+      }
+      playheadSec = 0;
+      playLineSec = 0;
+      playEndSec = DEFAULT_PLAY_END_SEC;
+      selectedClipId = null;
+      timelineHydrateSelectedId = null;
+      const durEl = document.getElementById("durSec");
+      const ppsEl = document.getElementById("pps");
+      const sc = document.getElementById("timelineScroll");
+      if (durEl) durEl.value = "45";
+      if (ppsEl) ppsEl.value = "72";
+      if (sc) sc.scrollLeft = 0;
+      axisEndSec = 45;
+      pixelsPerSec = 72;
+    }
+
     async function persistTimelineState() {
       try {
+        if (!clips.length) {
+          resetTimelineTransportToDefaults();
+        }
         const durEl = document.getElementById("durSec");
         const ppsEl = document.getElementById("pps");
         const clipParts = await Promise.all(
@@ -2550,10 +2592,10 @@
         );
         const payload = {
           v: 2,
-          playheadSec,
-          playEndSec,
-          pixelsPerSec: ppsEl ? parseFloat(ppsEl.value) || pixelsPerSec : pixelsPerSec,
-          durSecValue: durEl ? parseFloat(durEl.value) || axisEndSec : axisEndSec,
+          playheadSec: clips.length ? playheadSec : 0,
+          playEndSec: clips.length ? playEndSec : DEFAULT_PLAY_END_SEC,
+          pixelsPerSec: clips.length ? (ppsEl ? parseFloat(ppsEl.value) || pixelsPerSec : pixelsPerSec) : 72,
+          durSecValue: clips.length ? (durEl ? parseFloat(durEl.value) || axisEndSec : axisEndSec) : 45,
           selectedClipId:
             selectedClipId && clips.some((c) => c.id === selectedClipId) ? selectedClipId : null,
           clips: clipParts,
@@ -2619,20 +2661,6 @@
         const arr = data.clips;
         if (!Array.isArray(arr)) return false;
 
-        const durEl = document.getElementById("durSec");
-        const ppsEl = document.getElementById("pps");
-        if (data.durSecValue != null && durEl) {
-          const d = Math.min(600, Math.max(10, Math.round(Number(data.durSecValue))));
-          durEl.value = String(d);
-        }
-        if (data.pixelsPerSec != null && ppsEl && Number.isFinite(Number(data.pixelsPerSec))) {
-          const p = Math.round(Math.min(200, Math.max(24, Number(data.pixelsPerSec))));
-          ppsEl.value = String(p);
-        }
-
-        playheadSec = numOr(data.playheadSec, 0);
-        playEndSec = Number.isFinite(Number(data.playEndSec)) ? Number(data.playEndSec) : DEFAULT_PLAY_END_SEC;
-
         const next = [];
         for (const spec of arr) {
           if (!spec || typeof spec !== "object") continue;
@@ -2673,6 +2701,25 @@
         timelineHydrateSelectedId =
           typeof data.selectedClipId === "string" ? data.selectedClipId : null;
 
+        if (!clips.length) {
+          resetTimelineTransportToDefaults();
+          return true;
+        }
+
+        const durEl = document.getElementById("durSec");
+        const ppsEl = document.getElementById("pps");
+        if (data.durSecValue != null && durEl) {
+          const d = Math.min(600, Math.max(10, Math.round(Number(data.durSecValue))));
+          durEl.value = String(d);
+        }
+        if (data.pixelsPerSec != null && ppsEl && Number.isFinite(Number(data.pixelsPerSec))) {
+          const p = Math.round(Math.min(200, Math.max(24, Number(data.pixelsPerSec))));
+          ppsEl.value = String(p);
+        }
+
+        playheadSec = numOr(data.playheadSec, 0);
+        playEndSec = Number.isFinite(Number(data.playEndSec)) ? Number(data.playEndSec) : DEFAULT_PLAY_END_SEC;
+
         return true;
       } catch (_) {
         return false;
@@ -2705,6 +2752,9 @@
           ? timelineHydrateSelectedId
           : null;
       timelineHydrateSelectedId = null;
+      if (!clips.length) {
+        resetTimelineTransportToDefaults();
+      }
     }
 
     /** 浏览器内解码用户选择的音频文件（wav 等） */
@@ -3585,11 +3635,85 @@
     function timeFromClientX(clientX) {
       const sc = document.getElementById("timelineScroll");
       if (!sc) return 0;
-      const lab = timelineLabelPx();
+      const origin = timelineRulerOriginPx();
       const x = clientX - sc.getBoundingClientRect().left + sc.scrollLeft;
-      const t = (x - lab) / pixelsPerSec;
+      const t = (x - origin) / pixelsPerSec;
       return Math.max(0, Math.min(axisEndSec, t));
     }
+
+    /** 未按当前总时长钳位（可 > axisEndSec），用于判断是否需自动加长总时长 */
+    function timeFromClientXUnclamped(clientX) {
+      const sc = document.getElementById("timelineScroll");
+      if (!sc) return 0;
+      const origin = timelineRulerOriginPx();
+      const x = clientX - sc.getBoundingClientRect().left + sc.scrollLeft;
+      return Math.max(0, (x - origin) / pixelsPerSec);
+    }
+
+    /** 拖黄线/红线顶到右端或换算时间超出当前轴长时，加长「总时长」输入（步进至少 +30s，上限 600） */
+    function maybeExtendTimelineDurationWhileDraggingHead(clientX, tRawSec, bumpGate) {
+      const durEl = document.getElementById("durSec");
+      const sc = document.getElementById("timelineScroll");
+      if (!durEl || !sc) return false;
+      const cur = Math.max(10, Math.min(600, parseFloat(durEl.value) || 45));
+      if (cur >= 600) return false;
+      const r = sc.getBoundingClientRect();
+      const maxScroll = Math.max(0, sc.scrollWidth - sc.clientWidth);
+      const atRightScroll = maxScroll <= 1 || sc.scrollLeft >= maxScroll - 2;
+      const pushPastViewport = clientX > r.right - 36;
+      const pastAxis = tRawSec > cur + 0.04;
+      const pinAtEndDrag = atRightScroll && pushPastViewport && tRawSec >= cur - 0.12;
+      if (!pastAxis && !pinAtEndDrag) return false;
+      const now = performance.now();
+      if (bumpGate && bumpGate.last > 0 && now - bumpGate.last < 160) return false;
+      const next = Math.min(600, Math.max(cur + 30, Math.ceil(Math.max(tRawSec, cur) + 2)));
+      if (next <= cur + 0.5) return false;
+      durEl.value = String(next);
+      bumpGate.last = now;
+      renderTimeline();
+      return true;
+    }
+
+    /** 拖黄线/红线时指针靠近 #timelineScroll 左右边缘则水平自动滚动 */
+    function autoScrollTimelineDuringHeadDrag(clientX) {
+      const sc = document.getElementById("timelineScroll");
+      if (!sc) return;
+      const maxScroll = Math.max(0, sc.scrollWidth - sc.clientWidth);
+      if (maxScroll <= 0) return;
+      const r = sc.getBoundingClientRect();
+      const edge = Math.min(80, Math.max(40, r.width * 0.14));
+      const maxStep = Math.max(10, Math.round((pixelsPerSec || 72) * 0.2));
+      let delta = 0;
+      if (clientX < r.left + edge) {
+        const k = Math.max(0, Math.min(1, (r.left + edge - clientX) / edge));
+        delta = -Math.ceil(maxStep * k);
+      } else if (clientX > r.right - edge) {
+        const k = Math.max(0, Math.min(1, (clientX - (r.right - edge)) / edge));
+        delta = Math.ceil(maxStep * k);
+      }
+      if (delta === 0) return;
+      sc.scrollLeft = Math.max(0, Math.min(maxScroll, sc.scrollLeft + delta));
+    }
+
+    (function bindTimelineHoverClientXForSpace() {
+      const sc = document.getElementById("timelineScroll");
+      if (!sc) return;
+      sc.addEventListener("pointerenter", (e) => {
+        lastTimelineHoverClientX = e.clientX;
+        lastTimelineHoverInside = true;
+      });
+      sc.addEventListener(
+        "pointermove",
+        (e) => {
+          lastTimelineHoverClientX = e.clientX;
+          lastTimelineHoverInside = true;
+        },
+        { passive: true }
+      );
+      sc.addEventListener("pointerleave", () => {
+        lastTimelineHoverInside = false;
+      });
+    })();
 
     /**
      * @param {string} labelText
@@ -3662,6 +3786,7 @@
       rulerHost.appendChild(ruler);
 
       inner.appendChild(rulerHost);
+      const ox = timelineRulerOriginPx();
 
       ruler.addEventListener("pointerdown", (e) => {
         if (e.target.closest(".clip")) return;
@@ -3744,26 +3869,26 @@
       const plLine = document.createElement("div");
       plLine.className = "ph-line-play";
       plg.appendChild(plLine);
-      plg.style.left = lab + timeToPx(playLineSec) + "px";
+      plg.style.left = ox + timeToPx(playLineSec) + "px";
       inner.appendChild(plg);
 
       const phg = document.createElement("div");
       phg.id = "playheadGlobal";
-      phg.title = "黄线：起播/编辑位置（拖动）";
+      phg.title = "黄线：起播/编辑位置（拖动）。顶到最右或继续向右拖可自动加长总时长";
       const phLine = document.createElement("div");
       phLine.className = "ph-line";
       phg.appendChild(phLine);
-      phg.style.left = lab + timeToPx(playheadSec) + "px";
+      phg.style.left = ox + timeToPx(playheadSec) + "px";
       inner.appendChild(phg);
       attachPlayheadDrag(phg);
 
       const peg = document.createElement("div");
       peg.id = "playEndGlobal";
-      peg.title = "红线：结束位（拖动；播放/导出到此为止）";
+      peg.title = "红线：结束位（拖动；播放/导出到此为止）。顶到最右或继续向右拖可自动加长总时长";
       const peLine = document.createElement("div");
       peLine.className = "ph-line-end";
       peg.appendChild(peLine);
-      peg.style.left = lab + timeToPx(playEndSec) + "px";
+      peg.style.left = ox + timeToPx(playEndSec) + "px";
       inner.appendChild(peg);
       attachPlayEndDrag(peg);
 
@@ -3801,26 +3926,26 @@
     function updatePlayheadEl() {
       const ph = document.getElementById("playheadGlobal");
       if (!ph) return;
-      const lab = timelineLabelPx();
-      ph.style.left = lab + timeToPx(playheadSec) + "px";
+      const ox = timelineRulerOriginPx();
+      ph.style.left = ox + timeToPx(playheadSec) + "px";
       updateClipTrimBar();
     }
 
     function updatePlayEndEl() {
       const el = document.getElementById("playEndGlobal");
       if (!el) return;
-      const lab = timelineLabelPx();
+      const ox = timelineRulerOriginPx();
       if (!Number.isFinite(playEndSec) || playEndSec <= 0) playEndSec = axisEndSec;
       playEndSec = Math.max(0, Math.min(axisEndSec, playEndSec));
-      el.style.left = lab + timeToPx(playEndSec) + "px";
+      el.style.left = ox + timeToPx(playEndSec) + "px";
     }
 
     function updatePlayLineEl() {
       const el = document.getElementById("playLineGlobal");
       if (!el) return;
-      const lab = timelineLabelPx();
+      const ox = timelineRulerOriginPx();
       playLineSec = Math.max(0, Math.min(axisEndSec, playLineSec));
-      el.style.left = lab + timeToPx(playLineSec) + "px";
+      el.style.left = ox + timeToPx(playLineSec) + "px";
     }
 
     function setPlayLineVisible(show) {
@@ -3878,9 +4003,20 @@
           el.setPointerCapture(capId);
         } catch (_) {}
 
+        const bumpGate = { last: 0 };
+
         function move(ev) {
-          let t = timeFromClientX(ev.clientX);
-          t = Math.max(0, Math.min(axisEndSec, t));
+          autoScrollTimelineDuringHeadDrag(ev.clientX);
+          let tRaw = timeFromClientXUnclamped(ev.clientX);
+          if (maybeExtendTimelineDurationWhileDraggingHead(ev.clientX, tRaw, bumpGate)) {
+            const ph2 = document.getElementById("playheadGlobal");
+            try {
+              if (ph2) ph2.setPointerCapture(capId);
+            } catch (_) {}
+            axisEndSec = parseFloat(document.getElementById("durSec").value) || axisEndSec;
+            tRaw = timeFromClientXUnclamped(ev.clientX);
+          }
+          let t = Math.max(0, Math.min(axisEndSec, tRaw));
           t = Math.min(t, playEndSec);
           playheadSec = t;
           updatePlayheadEl();
@@ -3888,11 +4024,13 @@
         }
 
         function up() {
+          bumpGate.last = 0;
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", up);
           window.removeEventListener("pointercancel", up);
           try {
-            el.releasePointerCapture(capId);
+            const phRel = document.getElementById("playheadGlobal");
+            if (phRel) phRel.releasePointerCapture(capId);
           } catch (_) {}
           persistTimelineStateDebounced();
         }
@@ -3913,9 +4051,20 @@
           el.setPointerCapture(capId);
         } catch (_) {}
 
+        const bumpGate = { last: 0 };
+
         function move(ev) {
-          let t = timeFromClientX(ev.clientX);
-          t = Math.max(0, Math.min(axisEndSec, t));
+          autoScrollTimelineDuringHeadDrag(ev.clientX);
+          let tRaw = timeFromClientXUnclamped(ev.clientX);
+          if (maybeExtendTimelineDurationWhileDraggingHead(ev.clientX, tRaw, bumpGate)) {
+            const peg2 = document.getElementById("playEndGlobal");
+            try {
+              if (peg2) peg2.setPointerCapture(capId);
+            } catch (_) {}
+            axisEndSec = parseFloat(document.getElementById("durSec").value) || axisEndSec;
+            tRaw = timeFromClientXUnclamped(ev.clientX);
+          }
+          let t = Math.max(0, Math.min(axisEndSec, tRaw));
           t = Math.max(t, playheadSec);
           playEndSec = t;
           updatePlayEndEl();
@@ -3923,11 +4072,13 @@
         }
 
         function up() {
+          bumpGate.last = 0;
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", up);
           window.removeEventListener("pointercancel", up);
           try {
-            el.releasePointerCapture(capId);
+            const pegRel = document.getElementById("playEndGlobal");
+            if (pegRel) pegRel.releasePointerCapture(capId);
           } catch (_) {}
           persistTimelineStateDebounced();
         }
@@ -4539,16 +4690,29 @@
       });
     }
 
+    /**
+     * 若时间线片段右端超出当前「总时长」输入框，则把 durSec 拉长（带 2s 边距），并重建时间线。
+     * 仅在确实需要加长时改值 / 调用 renderTimeline，避免「条件几乎恒成立」导致频繁整表重绘
+     *（拖黄线/红线时若中途重绘会打断拖动，且易误改总时长）。
+     */
     function autoExtendDuration() {
       axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
-      let end = axisEndSec;
+      let maxClipEnd = 0;
       for (const c of clips) {
-        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c) + 2);
+        if (!c.buffer) continue;
+        maxClipEnd = Math.max(maxClipEnd, clipTimelineLeftSec(c) + clipTimelinePlayDur(c));
       }
-      if (end > axisEndSec - 0.5) {
-        document.getElementById("durSec").value = String(Math.ceil(end));
-        renderTimeline();
-      }
+      const marginSec = 2;
+      const target = Math.ceil(maxClipEnd + marginSec);
+      if (maxClipEnd <= 0) return;
+      if (target <= axisEndSec + 0.05) return;
+      const next = Math.min(600, target);
+      const durEl = document.getElementById("durSec");
+      if (!durEl) return;
+      const nextStr = String(next);
+      if (durEl.value === nextStr) return;
+      durEl.value = nextStr;
+      renderTimeline();
     }
 
     /** 从表格 DOM 写回路径/备注（避免用户未失焦就点「服务器」时 change 未触发） */
@@ -5216,32 +5380,36 @@
       stopPlay();
       const removed = clips.length;
       clips = [];
-      selectedClipId = null;
-      playheadSec = 0;
-      const dur = parseFloat(document.getElementById("durSec").value) || 45;
-      playEndSec = Math.max(0, Math.min(dur, DEFAULT_PLAY_END_SEC));
-      playLineSec = 0;
-      updatePlayheadEl();
-      updatePlayEndEl();
-      updatePlayLineEl();
+      resetTimelineTransportToDefaults();
       setPlayLineVisible(false);
       renderTimeline();
       updateClipTrimBar();
       autoExtendDuration();
-      setStatus("已清空时间线：移除 " + removed + " 个片段，黄线归 0、红线复位到 " + fmtTime(playEndSec) + "。");
+      persistTimelineState().catch(() => {});
+      setStatus(
+        "已清空时间线：移除 " +
+          removed +
+          " 个片段；黄线 0、红线 " +
+          fmtTime(playEndSec) +
+          "、总时长 45s；本地缓存 " +
+          VOICES_LS_TIMELINE +
+          " 已恢复为初始时间线状态。"
+      );
     });
 
-    document.getElementById("btnPlay").addEventListener("click", async () => {
+    /** 混音播放：从时间轴 from 秒起播至红线 endAt（与按钮「播放音频」相同逻辑） */
+    function startMixPlaybackFromTimelineSec(fromSec) {
       stopPlay();
       if (!clips.length) {
         setStatus("时间线上没有可播片段。");
         return;
       }
+      let from = Number(fromSec);
+      if (!Number.isFinite(from)) from = playheadSec;
+      from = Math.max(0, Math.min(axisEndSec, from));
       const AC = window.AudioContext || window.webkitAudioContext;
       playCtx = new AC({ sampleRate: sampleRate });
       const t0 = playCtx.currentTime + 0.08;
-      /** 时间轴上黄线位置（秒），从此刻起播 */
-      const from = playheadSec;
       /** 时间轴上红线位置（秒），播放到此停止 */
       const endAt = Math.max(from, Math.min(axisEndSec, playEndSec));
       if (endAt <= from) {
@@ -5335,12 +5503,16 @@
       }
       setStatus(
         scheduled
-          ? "从 " + fmtTime(from) + "（黄线）起播，到 " + fmtTime(endAt) + "（红线）停 · 绿线为进度 · 每个片段使用各自的『音速』"
-          : "黄线 " +
-              fmtTime(from) +
-              " ～ 红线 " + fmtTime(endAt) +
+          ? "从 " + fmtTime(from) + " 起播，到 " + fmtTime(endAt) + "（红线）停 · 绿线为进度 · 每个片段使用各自的『音速』"
+          : fmtTime(from) +
+              " ～ 红线 " +
+              fmtTime(endAt) +
               " 区间内没有可播片段。"
       );
+    }
+
+    document.getElementById("btnPlay").addEventListener("click", () => {
+      startMixPlaybackFromTimelineSec(playheadSec);
     });
 
     /**
@@ -5911,6 +6083,21 @@
         if (!clip || !clip.buffer) return;
         e.preventDefault();
         playTrimBarPreview();
+        return;
+      }
+
+      if (e.code === "Space" || e.key === " ") {
+        e.preventDefault();
+        let from = playheadSec;
+        if (lastTimelineHoverInside && lastTimelineHoverClientX != null) {
+          from = timeFromClientX(lastTimelineHoverClientX);
+          from = Math.max(0, Math.min(axisEndSec, from));
+          let pe = playEndSec;
+          if (!Number.isFinite(pe) || pe <= 0) pe = axisEndSec;
+          pe = Math.max(0, Math.min(axisEndSec, pe));
+          from = Math.min(from, pe);
+        }
+        startMixPlaybackFromTimelineSec(from);
         return;
       }
 
