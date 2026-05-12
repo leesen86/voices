@@ -495,12 +495,17 @@
       user-select: none;
       border-radius: 50%;
       flex-shrink: 0;
+      font-family: system-ui, -apple-system, "Segoe UI Symbol", "Segoe UI Emoji", "PingFang SC",
+        "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
     }
     .row-play-ico.is-play-idle {
-      color: var(--muted);
-      background: transparent;
-      border: 1px dashed #cbd5e1;
-      font-weight: 500;
+      color: #64748b;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.65rem;
+      padding: 0 0.1rem;
     }
     .row-play-ico.is-play-ready {
       color: #fff;
@@ -527,6 +532,8 @@
       display: inline-flex; align-items: center; justify-content: center;
       min-width: 1.35rem; min-height: 1.35rem; text-align: center; font-size: 1.05rem; line-height: 1;
       font-weight: 700; user-select: none; border-radius: 50%;
+      font-family: system-ui, -apple-system, "Segoe UI Symbol", "Segoe UI Emoji", "PingFang SC",
+        "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
     }
     .row-tts-cache-badge.is-fresh {
       color: #fff; background: #16a34a;
@@ -540,11 +547,18 @@
       color: #fff; background: #dc2626;
       border: 1px solid #b91c1c;
     }
-    .row-tts-cache-badge.is-none { color: var(--muted); background: transparent; border: 1px dashed #cbd5e1; font-size: 0.75rem; }
+    .row-tts-cache-badge.is-none {
+      color: #047857;
+      background: #fff;
+      border: 1px solid #059669;
+      border-radius: 4px;
+      font-size: 0.88rem;
+    }
     #timelineOuter {
       flex: 1; min-height: 220px; display: flex; flex-direction: column; overflow: hidden;
     }
     #timelineScroll {
+      position: relative;
       overflow-x: auto; overflow-y: hidden; flex: 1; border: 1px solid var(--border); border-radius: 6px;
       background: #f8fafc;
     }
@@ -869,11 +883,170 @@
       background: rgba(22, 101, 52, 0.22);
     }
     .clip-bg .clip-title { color: #bbf7d0; }
-    .bg-lane-hint {
-      font-size: 0.75rem;
+    .timeline-add-line-fab {
+      position: absolute;
+      z-index: 55;
+      padding: 0.16rem 0.38rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      border-radius: 4px;
+      border: 1px solid #1d4ed8;
+      background: #2563eb;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(37, 99, 235, 0.28);
+      cursor: pointer;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .timeline-add-line-fab:hover {
+      background: #1d4ed8;
+    }
+    .timeline-add-line-fab:focus-visible {
+      outline: 2px solid #93c5fd;
+      outline-offset: 1px;
+    }
+    .timeline-edit-line-fab {
+      position: absolute;
+      z-index: 56;
+      padding: 0.16rem 0.38rem;
+      font-size: 0.68rem;
+      font-weight: 600;
+      border-radius: 4px;
+      border: 1px solid #047857;
+      background: #059669;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+      cursor: pointer;
+      white-space: nowrap;
+      touch-action: manipulation;
+    }
+    .timeline-edit-line-fab:hover {
+      background: #047857;
+    }
+    .timeline-edit-line-fab:focus-visible {
+      outline: 2px solid #6ee7b7;
+      outline-offset: 1px;
+    }
+    .add-line-dialog-title {
+      margin: 0 0 0.55rem 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    #addLineDialog {
+      border: none;
+      border-radius: 10px;
+      padding: 0;
+      max-width: calc(100vw - 1rem);
+      width: min(920px, 98vw);
+      background: #fff;
+      color: var(--text, #0f172a);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    }
+    #addLineDialog::backdrop {
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .add-line-dialog-panel {
+      padding: 1rem 1.1rem 1rem;
+      background: #fff;
+    }
+    .add-line-dialog-panel h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .add-line-dialog-panel .add-line-hint {
+      margin: 0 0 0.75rem;
+      font-size: 0.78rem;
       color: var(--muted);
-      padding: 0.35rem 0.5rem;
-      pointer-events: none;
+    }
+    .add-line-dialog-table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .add-line-dialog-table col.add-line-dlg-col-char {
+      width: 20%;
+    }
+    .add-line-dialog-table col.add-line-dlg-col-text {
+      width: 54%;
+    }
+    .add-line-dialog-table col.add-line-dlg-col-num {
+      width: 5.5rem;
+    }
+    .add-line-dialog-table col.add-line-dlg-col-op {
+      width: 11.25rem;
+    }
+    .add-line-dialog-table th,
+    .add-line-dialog-table td {
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.45rem;
+      text-align: left;
+      vertical-align: middle;
+    }
+    .add-line-dialog-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .add-line-dialog-table input[type="text"],
+    .add-line-dialog-table input[type="number"],
+    .add-line-dialog-table select {
+      width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      padding: 0.25rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg, #fff);
+      color: inherit;
+    }
+    .add-line-dialog-row-actions {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      align-items: center;
+      margin: 0;
+    }
+    /* 与主台词表「操作」列生成/播放按钮同规格 */
+    .add-line-dialog-row-actions .toolbar-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.38rem;
+      padding: 0.34rem 0.52rem;
+      position: relative;
+      font-size: 0.82rem;
+    }
+    .add-line-dialog-row-actions .toolbar-btn:nth-of-type(1) {
+      min-width: 4.5rem;
+    }
+    .add-line-dialog-row-actions .toolbar-btn:nth-of-type(2) {
+      min-width: 4.25rem;
+    }
+    .add-line-dialog-row-actions .toolbar-btn .row-tts-cache-badge {
+      min-width: 1.05rem;
+      min-height: 1.05rem;
+      font-size: 0.68rem;
+      flex-shrink: 0;
+    }
+    .add-line-dialog-row-actions .toolbar-btn .row-gen-lab,
+    .add-line-dialog-row-actions .toolbar-btn .row-play-lab {
+      font-size: 0.82rem;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .add-line-dialog-footer-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 0.85rem;
+    }
+    .add-line-dialog-footer-actions .toolbar-btn {
+      font-size: 0.82rem;
     }
     /* 参考视频：固定浮窗（可拖动标题栏）；默认约 430×580 */
     #syncVideoFloat {
@@ -900,6 +1073,15 @@
       bottom: auto;
     }
     #syncVideoFloat[hidden] {
+      display: none !important;
+    }
+    #syncVideoFloat.sync-video-float--collapsed {
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none;
+    }
+    #syncVideoFloat.sync-video-float--collapsed .sync-video-float-body,
+    #syncVideoFloat.sync-video-float--collapsed .sync-video-float-resize {
       display: none !important;
     }
     .sync-video-float-header {
@@ -1244,7 +1426,7 @@
         <span class="panel-collapsible-hint">点击展开 · 多条背景素材 · 再「添加到时间线」</span>
       </summary>
       <div class="panel-collapsible-body">
-        <p class="hint">可多轨。<strong>备注</strong>为轨名；<strong>文件路径</strong>供读入；<strong>选择音轨</strong>本地解码；<strong>添加到时间线</strong>挂到黄线。</p>
+        <p class="hint">可多轨。<strong>备注</strong>为轨名；<strong>文件路径</strong>供读入；<strong>选择音轨</strong>本地解码；<strong>添加到时间线</strong>接到该背景轨已有内容的末尾（不按黄线）。</p>
         <table id="bgTable">
           <thead>
             <tr>
@@ -1264,7 +1446,7 @@
     <section class="panel" id="timelineOuter">
       <h2>三、时间线（标尺 · 多轨 · 波形块）</h2>
       <p class="hint">
-      <strong style="color:#dc2626">红竖线</strong>为起播/编辑头可拖；<strong style="color:#16a34a">绿竖线</strong>为混音播放进度（仅播放时出现）。选中时间线音频块后按 <kbd>Enter</kbd> 播放, <kbd>Delete</kbd> 删除。 按 <kbd>Space</kbd> 可以快速试听整轨。
+      <strong style="color:#dc2626">红竖线</strong>为起播/编辑头可拖；<strong style="color:#16a34a">绿竖线</strong>为混音播放进度（仅播放时出现）。选中时间线音频块后按 <kbd>Enter</kbd> 播放, <kbd>Delete</kbd> 删除。 按 <kbd>Space</kbd> 从黄线（或鼠标在时间线内时从指针处）播到红线；<strong>已加载参考视频</strong>时，即使黄线～红线之间没有音频块，也可按空格走<strong>画面与绿线</strong>便于对画。
       </p>
       <div class="row" style="align-items:center; display:none;" aria-hidden="true">
         <div style="flex:0 0 auto;">
@@ -1331,8 +1513,14 @@
           <span class="hint" id="clipAudioHint">选中背景音片段后可调节</span>
         </div>
       </div>
-      <div id="timelineScroll" tabindex="-1" aria-label="时间线区域：选中片段后 Delete 删除、Enter 试听该块；未在输入框内时 Space 从指针或黄线起混音播至红线">
+      <div id="timelineScroll" tabindex="-1" aria-label="时间线区域：选中片段后 Delete 删除、Enter 试听该块；未在输入框内时 Space 从指针或黄线起混音播至红线（有参考视频时无音频空白段也可走画面）；在角色台词轨空白处点击可出现「添加台词」">
         <div id="timelineInner"></div>
+        <button type="button" id="timelineAddLineFab" class="timeline-add-line-fab" hidden aria-hidden="true" title="在对应角色轨空白处点击后出现；打开弹窗时记下该轨与标尺时间，确认且已生成时片段会放到该时间附近">
+          添加台词
+        </button>
+        <button type="button" id="timelineEditLineFab" class="timeline-edit-line-fab" hidden aria-hidden="true" title="编辑该片段对应的台词行：改文案或参数后可重新生成，确认时同步到时间线已有块">
+          编辑台词
+        </button>
       </div>
       <div id="transport">
         <button
@@ -1343,7 +1531,7 @@
         >
           <span class="tb-ico" aria-hidden="true">🎬</span><span class="tb-lab">导入视频</span>
         </button>
-        <button type="button" class="toolbar-btn toolbar-row-play" id="btnPlay" disabled title="时间线上有片段时可从黄线起播，播放到红线停止；空格：鼠标在时间线内则从指针处快速试听（黄线不动），否则从黄线起播">
+        <button type="button" class="toolbar-btn toolbar-row-play" id="btnPlay" disabled title="时间线有片段或已加载参考视频时可从黄线起播至红线；无片段时若有视频则只播画面与绿线进度。空格：鼠标在时间线内则从指针处试听（黄线不动）">
           <span class="tb-ico" aria-hidden="true">▶</span><span class="tb-lab">播放音频</span>
         </button>
         <button type="button" class="toolbar-btn toolbar-transport-stop" id="btnStop">
@@ -1368,11 +1556,90 @@
     </section>
   </main>
 
+  <dialog id="addLineDialog" aria-labelledby="addLineDialogTitle">
+    <div class="add-line-dialog-panel">
+      <h2 id="addLineDialogTitle" class="add-line-dialog-title">添加台词</h2>
+      <table class="add-line-dialog-table">
+        <colgroup>
+          <col class="add-line-dlg-col-char" />
+          <col class="add-line-dlg-col-text" />
+          <col class="add-line-dlg-col-num" />
+          <col class="add-line-dlg-col-num" />
+          <col class="add-line-dlg-col-num" />
+          <col class="add-line-dlg-col-op" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>角色</th>
+            <th>台词</th>
+            <th>引导值</th>
+            <th>推理步数</th>
+            <th>随机值</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <select id="addLineDlgChar" aria-label="角色"></select>
+            </td>
+            <td>
+              <input type="text" id="addLineDlgText" placeholder="台词…" maxlength="2000" autocomplete="off" />
+            </td>
+            <td>
+              <input type="number" id="addLineDlgCfg" min="0.5" max="5" step="0.1" value="2" />
+            </td>
+            <td>
+              <input type="number" id="addLineDlgSteps" min="1" max="60" step="1" value="10" />
+            </td>
+            <td>
+              <input type="number" id="addLineDlgSeed" step="1" value="0" />
+            </td>
+            <td>
+              <div class="add-line-dialog-row-actions">
+                <button type="button" class="toolbar-btn toolbar-gen" id="addLineDlgGen" title="点此生成整段 TTS">
+                  <span class="row-tts-cache-badge is-none" id="addLineDlgGenBadge" aria-hidden="true">&#9889;</span>
+                  <span class="row-gen-lab" id="addLineDlgGenLab">生成</span>
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-btn toolbar-row-play"
+                  id="addLineDlgPlay"
+                  title="保存到台词表并试听本行（需已生成音频）"
+                >
+                  <span class="row-play-ico is-play-idle" id="addLineDlgPlayIco" aria-hidden="true">&#9654;</span>
+                  <span class="row-play-lab">播放</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="add-line-dialog-footer-actions">
+        <button type="button" class="toolbar-btn" id="addLineDlgCancel">取消</button>
+        <button type="button" class="toolbar-btn toolbar-addline" id="addLineDlgSave" title="保存到台词表并关闭；若本行已生成音频则自动加到时间线：从时间线打开时用当时点击的大致时间作为起点，否则接到该角色轨末尾">
+          <span class="tb-lab">确认</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- 参考视频：可拖动浮窗（不参与文档流，不占时间线高度） -->
   <div id="syncVideoFloat" class="sync-video-float" role="dialog" aria-label="参考视频浮窗" hidden>
     <div class="sync-video-float-header" id="syncVideoFloatHeader">
       <span class="sync-video-float-title">参考视频 · 画音对齐</span>
       <span class="sync-video-float-actions">
+        <button
+          type="button"
+          class="sync-video-float-iconbtn"
+          id="syncVideoFloatCollapse"
+          title="折叠"
+          aria-label="折叠参考视频区域"
+          aria-expanded="true"
+          aria-controls="syncVideoFloatBody"
+        >
+          &#8722;
+        </button>
         <button type="button" class="sync-video-float-iconbtn" id="syncVideoFloatClose" title="关闭浮窗">×</button>
       </span>
     </div>
@@ -1436,7 +1703,7 @@
     const VOICES_LS_BG_TRACKS = "voices.workbench.bgTracks.v1";
     const VOICES_LS_TIMELINE = "voices.workbench.timeline.v1";
     /**
-     * 背景音素材池（不再直接挂到时间线；点「添加到时间线」才生成 clips[] 中的一段 bg clip）
+     * 背景音素材池（不再直接挂到时间线；点「添加到时间线」在该背景轨末尾生成 clips[] 中的一段 bg clip）
      * @type {{
      *   id: string,
      *   note: string,
@@ -1449,13 +1716,15 @@
     /**
      * 时间线片段：台词片段（kind 省略或 "line"）和背景音片段（kind:"bg"）一起放这里；
      * 台词用 trackIndex 定位角色轨；背景音用 bgTrackIndex 定位背景轨，trackIndex 视为无效。
-     * @type {{ id: string, kind?: "line" | "bg", charIndex: number, trackIndex: number, bgTrackIndex?: number, sourceLineRowId?: string, sourceBgTrackId?: string, text: string, startSec: number, buffer: AudioBuffer, trimIn?: number, trimOut?: number, midIn?: number, midOut?: number, roleName?: string, cfgValue?: number, inferenceTimesteps?: number, gainPct?: number, fadeInSec?: number, fadeOutSec?: number, ratePct?: number }[]} */
+     * @type {{ id: string, kind?: "line" | "bg", charIndex: number, trackIndex: number, bgTrackIndex?: number, sourceLineRowId?: string, sourceBgTrackId?: string, text: string, startSec: number, buffer: AudioBuffer, trimIn?: number, trimOut?: number, midIn?: number, midOut?: number, roleName?: string, cfgValue?: number, inferenceTimesteps?: number, gainPct?: number, fadeInSec?: number, fadeOutSec?: number, ratePct?: number, ttsCacheDigest?: string, audioWavPath?: string }[]} */
     let clips = [];
     let selectedClipId = null;
     let trimDrag = null;
+    /** 时间线：整段平移拖动（避免误用隐式全局变量） */
+    let timelineClipDrag = null;
     /** @type {{ edge: "L" | "R" } | null} */
     let stripDrag = null;
-    /** @type {{ id: string, charIndex: number, text: string, cfgValue: number, inferenceTimesteps: number, ttsSeed: number, buffer: AudioBuffer | null, ttsCacheBadge?: "none"|"fresh"|"hit"|"error", batchSelected?: boolean, _generating?: boolean }[]} */
+    /** @type {{ id: string, charIndex: number, text: string, cfgValue: number, inferenceTimesteps: number, ttsSeed: number, buffer: AudioBuffer | null, ttsCacheBadge?: "none"|"fresh"|"hit"|"error", ttsCacheDigest?: string, batchSelected?: boolean, _generating?: boolean }[]} */
     let lineRows = [];
     let previewCtx = null;
     /** 正在用「本行播放」试听的那一行 id（与 trim 条试听互斥，见 stopPlay）；含已暂停（previewCtx 仍打开） */
@@ -1466,6 +1735,14 @@
     let previewBgActiveId = null;
     /** 台词行「定位」：下一轮要选中的序号（对应该行在时间线上已添加片段列表，按时间排序后循环） */
     let locateLineClipNextIdx = Object.create(null);
+    /** 时间线「添加台词」浮钮：对应角色轨索引（与台词行 charIndex 一致） */
+    let timelineAddLineFabTrackIdx = 0;
+    /** 在角色轨空白处点击时的标尺时间（秒）；从时间线打开弹窗后点「确认」并添加到时间线时用该起点；弹窗未打开且 FAB 隐藏时清除 */
+    let timelineAddLineFabIntentStartSec = null;
+    /** 时间线「添加台词」弹窗绑定的草稿行 id（与上方表格同一行实时同步；关闭未确认则删除） */
+    let timelineAddLineDraftRowId = null;
+    /** 点「生成」确认后弹窗仍打开时，继续与该行同步编辑（非草稿，关闭弹窗时不删行） */
+    let timelineAddLineDialogEditRowId = null;
 
     let pixelsPerSec = 72;
     /** 时间轴左端固定为 0 */
@@ -1565,6 +1842,28 @@
     /** 时间线上块左缘（秒）= 外层起点 + 左侧灰区 */
     function clipTimelineLeftSec(c) {
       return c.startSec + (c.midIn || 0);
+    }
+
+    /** 某角色台词轨上已有片段的最右端（秒）；无片段则为 0（新块从 0 接起） */
+    function dialogueTrackTimelineEndSec(trackIndex) {
+      let end = 0;
+      for (const c of clips) {
+        if (!c.buffer || c.kind === "bg") continue;
+        if (c.trackIndex !== trackIndex) continue;
+        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c));
+      }
+      return end;
+    }
+
+    /** 某背景素材轨上已有片段的最右端（秒）；无则为 0 */
+    function bgTrackTimelineEndSec(bgTrackIndex) {
+      let end = 0;
+      for (const c of clips) {
+        if (!c.buffer || c.kind !== "bg") continue;
+        if (c.bgTrackIndex !== bgTrackIndex) continue;
+        end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c));
+      }
+      return end;
     }
 
     /** 本行台词已添加到时间线上的片段（来源 sourceLineRowId），按时间线左缘排序 */
@@ -1675,7 +1974,12 @@
       c.startSec = clampClipStartSec(c, c.startSec);
     }
 
-    function selectClip(id) {
+    /**
+     * @param {string} id
+     * @param {{ scrollSmooth?: boolean, editFabClient?: { x: number, y: number } } | undefined} [opts]
+     */
+    function selectClip(id, opts) {
+      hideTimelineAddLineFab();
       selectedClipId = id;
       document.querySelectorAll(".clip").forEach((el) => {
         el.classList.toggle("selected", el.dataset.clipId === id);
@@ -1692,6 +1996,45 @@
           } catch (_) {}
         }
       }
+      const safeId = String(id || "").replace(/"/g, "");
+      requestAnimationFrame(() => {
+        const el = document.querySelector('.clip[data-clip-id="' + safeId + '"]');
+        if (!el) return;
+        if (opts && opts.scrollSmooth) {
+          const sc2 = document.getElementById("timelineScroll");
+          if (sc2) {
+            const cr = el.getBoundingClientRect();
+            const vp = timelineScrollWaveformViewport(sc2);
+            if (cr.width <= vp.innerW + 0.5) {
+              el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+            } else {
+              scrollTimelineHorizontalIfClipOutOfView(el);
+            }
+          }
+        } else {
+          scrollTimelineHorizontalIfClipOutOfView(el);
+        }
+        const c2 = clips.find((x) => x.id === safeId);
+        if (
+          c2 &&
+          c2.kind !== "bg" &&
+          c2.sourceLineRowId &&
+          lineRows.some((r) => r.id === c2.sourceLineRowId)
+        ) {
+          const cr2 = el.getBoundingClientRect();
+          const ax =
+            opts && opts.editFabClient && Number.isFinite(opts.editFabClient.x)
+              ? opts.editFabClient.x
+              : (cr2.left + cr2.right) / 2;
+          const ay =
+            opts && opts.editFabClient && Number.isFinite(opts.editFabClient.y)
+              ? opts.editFabClient.y
+              : cr2.top + 6;
+          showTimelineEditLineFab(ax, ay, c2.sourceLineRowId);
+        } else {
+          hideTimelineEditLineFab();
+        }
+      });
     }
 
     function refreshSelectedClipVisuals() {
@@ -1763,10 +2106,13 @@
         }
       }
       if (btnPlay) {
-        btnPlay.disabled = !clips.length;
+        const vidOk = syncVideoHasSrc();
+        btnPlay.disabled = !clips.length && !vidOk;
         btnPlay.title = clips.length
           ? "从黄线起播，到红线停止（含台词与背景音）；空格：鼠标在时间线内则从指针处快速试听（黄线不动）"
-          : "时间线为空 · 请先生成台词片段，或在背景音表格点「添加到时间线」";
+          : vidOk
+            ? "已加载参考视频：无时间线片段时也可从黄线起播画面（仅视频+绿线进度）至红线；空格同上"
+            : "时间线为空 · 请先生成台词片段，或在背景音表格点「添加到时间线」，或加载参考视频";
       }
       if (btnTrimPreview) {
         btnTrimPreview.disabled = !canPreview;
@@ -2139,15 +2485,20 @@
 
     function persistLineRows() {
       try {
-        const payload = lineRows.map((r) => ({
-          id: r.id,
-          charIndex: Math.max(0, Math.floor(Number(r.charIndex)) || 0),
-          text: String(r.text || ""),
-          cfgValue: numOr(r.cfgValue, 2),
-          inferenceTimesteps: Math.round(numOr(r.inferenceTimesteps, 10, 1, 60)),
-          ttsSeed: Number.isFinite(Number(r.ttsSeed)) ? Math.trunc(Number(r.ttsSeed)) : 0,
-          batchSelected: r.batchSelected !== false,
-        }));
+        const payload = lineRows.map((r) => {
+          const o = {
+            id: r.id,
+            charIndex: Math.max(0, Math.floor(Number(r.charIndex)) || 0),
+            text: String(r.text || ""),
+            cfgValue: numOr(r.cfgValue, 2),
+            inferenceTimesteps: Math.round(numOr(r.inferenceTimesteps, 10, 1, 60)),
+            ttsSeed: Number.isFinite(Number(r.ttsSeed)) ? Math.trunc(Number(r.ttsSeed)) : 0,
+            batchSelected: r.batchSelected !== false,
+          };
+          const td = normalizeTtsDigest(r.ttsCacheDigest);
+          if (td) o.ttsCacheDigest = td;
+          return o;
+        });
         localStorage.setItem(VOICES_LS_LINE_ROWS, JSON.stringify(payload));
       } catch (_) {}
     }
@@ -2172,6 +2523,7 @@
             buffer: null,
             ttsCacheBadge: "none",
             batchSelected: row.batchSelected !== false,
+            ttsCacheDigest: normalizeTtsDigest(row.ttsCacheDigest) || undefined,
           });
         }
         if (!next.length) return false;
@@ -2271,7 +2623,109 @@
       syncRowPlayUi(row.id);
     }
 
-    /** 同步「生成」按钮：左侧圆标表示状态（○/⟳/✓/✗），文案固定为「生成」 */
+    /** 若「添加台词」弹窗正绑定本行，则刷新弹窗内生成/播放图标与主表一致 */
+    function syncAddLineDialogIfBoundToRow(rowId) {
+      if (timelineAddLineDialogBoundRowId() !== rowId) return;
+      syncAddLineDialogGenPlayUi();
+    }
+
+    /** 弹窗内「生成」「播放」与主表同一行状态对齐（✓/⚡/▶/⏸ 等） */
+    function syncAddLineDialogGenPlayUi() {
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg || !dlg.open) return;
+      const bid = timelineAddLineDialogBoundRowId();
+      if (!bid) return;
+      const row = lineRows.find((r) => r.id === bid);
+      if (!row) return;
+      const genBtn = document.getElementById("addLineDlgGen");
+      const genBadge = document.getElementById("addLineDlgGenBadge");
+      const genLab = document.getElementById("addLineDlgGenLab");
+      if (genLab) genLab.textContent = "生成";
+      if (row._generating) {
+        if (genBadge) {
+          genBadge.textContent = "\u27F3";
+          genBadge.className = "row-tts-cache-badge is-gen-loading";
+          genBadge.removeAttribute("title");
+        }
+        if (genBtn) {
+          genBtn.title = "正在生成…";
+          genBtn.disabled = true;
+        }
+      } else {
+        if (genBtn) genBtn.disabled = false;
+        const b = row.ttsCacheBadge || "none";
+        if (genBadge) {
+          if (b === "error") {
+            genBadge.textContent = "\u2717";
+          } else if (b === "hit" || b === "fresh") {
+            genBadge.textContent = "\u2713";
+          } else {
+            genBadge.textContent = "\u26A1";
+          }
+          genBadge.className =
+            "row-tts-cache-badge " +
+            (b === "none" ? "is-none" : b === "fresh" ? "is-fresh" : b === "hit" ? "is-hit" : "is-error");
+          genBadge.title =
+            b === "hit"
+              ? "命中服务端磁盘缓存（未重新推理）"
+              : b === "fresh"
+                ? "已推理并写入服务端缓存"
+                : b === "error"
+                  ? "生成失败，请查看屏幕提示"
+                  : "尚未就绪：参数或台词变更后需重新生成";
+        }
+        if (genBtn) {
+          genBtn.title =
+            b === "hit" || b === "fresh"
+              ? (genBadge && genBadge.title ? genBadge.title : "") + " · 点此可重新生成"
+              : b === "error"
+                ? "生成失败 · 点此重试"
+                : "点此生成整段 TTS";
+        }
+      }
+      const playBtn = document.getElementById("addLineDlgPlay");
+      const playIco = document.getElementById("addLineDlgPlayIco");
+      const playLab = playBtn && playBtn.querySelector(".row-play-lab");
+      if (playLab) playLab.textContent = "播放";
+      if (!row.buffer) {
+        if (playBtn) {
+          playBtn.disabled = true;
+          playBtn.title = "请先生成整段音频，再播放试听";
+        }
+        if (playIco) {
+          playIco.textContent = "\u25B6";
+          playIco.className = "row-play-ico is-play-idle";
+        }
+        return;
+      }
+      if (playBtn) playBtn.disabled = false;
+      if (rowPreviewPlayingId === bid && previewCtx) {
+        const st = previewCtx.state;
+        if (st === "suspended") {
+          if (playIco) {
+            playIco.textContent = "\u25B6";
+            playIco.className = "row-play-ico is-play-paused";
+          }
+          if (playBtn) playBtn.title = "已暂停 · 再点击继续试听本行";
+          return;
+        }
+        if (st === "running") {
+          if (playIco) {
+            playIco.textContent = "\u23F8";
+            playIco.className = "row-play-ico is-play-active";
+          }
+          if (playBtn) playBtn.title = "正在播放 · 再点击暂停";
+          return;
+        }
+      }
+      if (playIco) {
+        playIco.textContent = "\u25B6";
+        playIco.className = "row-play-ico is-play-ready";
+      }
+      if (playBtn) playBtn.title = "点击试听本行";
+    }
+
+    /** 同步「生成」按钮：左侧标：⚡未就绪 / ⟳生成中 / ✓已就绪 / ✗失败；文案固定为「生成」 */
     function syncRowGenUi(rowId) {
       const row = lineRows.find((r) => r.id === rowId);
       const tr = document.querySelector('tr[data-line-row-id="' + String(rowId).replace(/"/g, "") + '"]');
@@ -2290,6 +2744,7 @@
         }
         btn.title = "正在生成…";
         btn.disabled = true;
+        syncAddLineDialogIfBoundToRow(rowId);
         return;
       }
       btn.disabled = false;
@@ -2300,7 +2755,7 @@
         } else if (b === "hit" || b === "fresh") {
           el.textContent = "\u2713";
         } else {
-          el.textContent = "\u25CB";
+          el.textContent = "\u26A1";
         }
         el.className =
           "row-tts-cache-badge " +
@@ -2320,6 +2775,7 @@
           : b === "error"
             ? "生成失败 · 点此重试"
             : "点此生成整段 TTS";
+      syncAddLineDialogIfBoundToRow(rowId);
     }
 
     function syncAllRowPlayUi() {
@@ -2341,11 +2797,12 @@
       if (!row.buffer) {
         btn.disabled = true;
         if (ico) {
-          ico.textContent = "\u25CB";
+          ico.textContent = "\u25B6";
           ico.className = "row-play-ico is-play-idle";
         }
         btn.title = "请先生成整段音频，再播放试听";
         if (exBtn) exBtn.disabled = true;
+        syncAddLineDialogIfBoundToRow(rowId);
         return;
       }
       btn.disabled = false;
@@ -2358,6 +2815,7 @@
           }
           btn.title = "已暂停 · 再点击继续试听本行";
           if (exBtn) exBtn.disabled = false;
+          syncAddLineDialogIfBoundToRow(rowId);
           return;
         }
         if (st === "running") {
@@ -2367,6 +2825,7 @@
           }
           btn.title = "正在播放 · 再点击暂停";
           if (exBtn) exBtn.disabled = false;
+          syncAddLineDialogIfBoundToRow(rowId);
           return;
         }
       }
@@ -2376,6 +2835,7 @@
       }
       btn.title = "点击试听本行";
       if (exBtn) exBtn.disabled = false;
+      syncAddLineDialogIfBoundToRow(rowId);
     }
 
     function syncCharPlayUi(charId) {
@@ -2465,25 +2925,7 @@
       const i = next % list.length;
       const clip = list[i];
       locateLineClipNextIdx[rowId] = i + 1;
-      selectClip(clip.id);
-      requestAnimationFrame(() => {
-        const el = document.querySelector(
-          '.clip[data-clip-id="' + String(clip.id).replace(/"/g, "") + '"]'
-        );
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-        }
-        const sc = document.getElementById("timelineScroll");
-        if (sc) {
-          try {
-            sc.focus({ preventScroll: true });
-          } catch (_) {
-            try {
-              sc.focus();
-            } catch (_) {}
-          }
-        }
-      });
+      selectClip(clip.id, { scrollSmooth: true });
       setStatus(
         "定位：本行第 " + (i + 1) + " / " + list.length + " 个片段（时间顺序；继续点「定位」循环）。"
       );
@@ -2517,6 +2959,56 @@
       const bytes = new Uint8Array(n);
       for (let i = 0; i < n; i++) bytes[i] = binary.charCodeAt(i);
       return bytes.buffer;
+    }
+
+    /** TTS 磁盘缓存 md5（32 位十六进制），与 api.py 中缓存文件名一致 */
+    function normalizeTtsDigest(d) {
+      const t = typeof d === "string" ? d.trim().toLowerCase() : "";
+      return /^[a-f0-9]{32}$/.test(t) ? t : "";
+    }
+
+    /** 按台词行参数向服务端查询缓存 digest（不写音频体） */
+    async function fetchTtsDigestForLineRow(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      const ch = row && characters[row.charIndex];
+      if (!row || !ch || !(ch.ref || "").trim() || !(row.text || "").trim()) return "";
+      try {
+        const res = await fetch(API + "/api/tts/cache_digests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: [
+              {
+                reference_wav_path: ch.ref.trim(),
+                text: String(row.text || "").trim().normalize("NFC"),
+                cfg_value: numOr(row.cfgValue, 2),
+                inference_timesteps: Math.round(numOr(row.inferenceTimesteps, 10, 1, 60)),
+                tts_seed: Number.isFinite(Number(row.ttsSeed)) ? Math.trunc(Number(row.ttsSeed)) : 0,
+              },
+            ],
+          }),
+        });
+        if (!res.ok) return "";
+        const j = await res.json();
+        const arr = j && j.digests;
+        const dg = arr && arr[0] && arr[0].digest ? String(arr[0].digest) : "";
+        return normalizeTtsDigest(dg);
+      } catch (_) {
+        return "";
+      }
+    }
+
+    /** 从服务端 TTS 缓存读取整段 WAV 字节 */
+    async function fetchTtsWavArrayBufferByDigest(digest) {
+      const d = normalizeTtsDigest(digest);
+      if (!d) return null;
+      try {
+        const res = await fetch(API + "/api/tts/cache_wav/" + encodeURIComponent(d));
+        if (!res.ok) return null;
+        return await res.arrayBuffer();
+      } catch (_) {
+        return null;
+      }
     }
 
     /**
@@ -2579,19 +3071,35 @@
             } else if (c.sourceLineRowId) {
               o.sourceLineRowId = c.sourceLineRowId;
             }
-            if (c.buffer && c.buffer.numberOfChannels >= 1) {
+            let digest = normalizeTtsDigest(c.ttsCacheDigest);
+            if ((!c.kind || c.kind !== "bg") && c.sourceLineRowId) {
+              const dApi = await fetchTtsDigestForLineRow(c.sourceLineRowId);
+              if (dApi) digest = dApi;
+              else if (!digest) {
+                const row = lineRows.find((r) => r.id === c.sourceLineRowId);
+                digest = normalizeTtsDigest(row && row.ttsCacheDigest);
+              }
+            }
+            if (digest) {
+              o.audioTtsDigest = digest;
+            } else if (c.kind === "bg") {
+              const bi = typeof c.bgTrackIndex === "number" ? c.bgTrackIndex : -1;
+              const bt = bi >= 0 && bi < bgTracks.length ? bgTracks[bi] : null;
+              const p = bt && (bt.path || "").trim();
+              if (p) o.audioWavPath = p;
+            } else if (c.buffer && c.buffer.numberOfChannels >= 1) {
               try {
                 const pcm = c.buffer.getChannelData(0);
                 const wavBlob = encodeWavPcm16Mono(pcm, c.buffer.sampleRate);
                 const ab = await wavBlob.arrayBuffer();
-                o.audioWavB64 = arrayBufferToBase64(ab);
+                o.audioWavB64 = arrayBufferToBase64(ab.slice(0));
               } catch (_) {}
             }
             return o;
           })
         );
         const payload = {
-          v: 2,
+          v: 4,
           playheadSec: clips.length ? playheadSec : 0,
           playEndSec: clips.length ? playEndSec : DEFAULT_PLAY_END_SEC,
           pixelsPerSec: clips.length ? (ppsEl ? parseFloat(ppsEl.value) || pixelsPerSec : pixelsPerSec) : 72,
@@ -2611,7 +3119,7 @@
             try {
               localStorage.setItem(VOICES_LS_TIMELINE, JSON.stringify(slim));
               setStatus(
-                "时间线元数据已保存；音频体积过大无法写入本地缓存，刷新后片段可能丢失。可缩短工程或清理站点存储。"
+                "时间线元数据已保存；localStorage 仍超限，已去掉内嵌 base64。请缩短工程或清理站点存储；台词片段依赖服务端 tts_cache 与 digest。"
               );
             } catch (_) {}
           }
@@ -2694,6 +3202,12 @@
           }
           if (typeof spec.audioWavB64 === "string" && spec.audioWavB64.length > 0) {
             clip._wavB64 = spec.audioWavB64;
+          } else {
+            const dg = normalizeTtsDigest(spec.audioTtsDigest);
+            if (dg) clip._pendingTtsDigest = dg;
+            else if (typeof spec.audioWavPath === "string" && spec.audioWavPath.trim()) {
+              clip._pendingWavPath = spec.audioWavPath.trim();
+            }
           }
           next.push(clip);
         }
@@ -2726,19 +3240,29 @@
       }
     }
 
-    /** 刷新后：先按台词/背景池挂 buffer，再解码时间线内嵌的 WAV，最后丢弃仍无音频数据的片段 */
+    /** 刷新后：先按台词/背景池挂 buffer，再解码 base64 或通过 digest/路径从服务端取 WAV */
     async function hydrateTimelineClipBuffersAfterStorage() {
       restoreClipBuffersFromSources();
       const AC = window.AudioContext || window.webkitAudioContext;
       const ctx = new AC();
       try {
         for (const c of clips) {
-          if (c.buffer || !c._wavB64) continue;
+          if (c.buffer) continue;
           try {
-            const raw = base64ToArrayBuffer(c._wavB64);
+            let raw = null;
+            if (c._wavB64) {
+              raw = base64ToArrayBuffer(c._wavB64);
+              delete c._wavB64;
+            } else if (c._pendingTtsDigest) {
+              raw = await fetchTtsWavArrayBufferByDigest(c._pendingTtsDigest);
+              delete c._pendingTtsDigest;
+            } else if (c._pendingWavPath) {
+              raw = await fetchReadWavArrayBuffer(c._pendingWavPath);
+              delete c._pendingWavPath;
+            }
+            if (!raw) continue;
             c.buffer = await ctx.decodeAudioData(raw.slice(0));
           } catch (_) {}
-          delete c._wavB64;
         }
       } finally {
         try {
@@ -2989,8 +3513,8 @@
           setStatus("请先勾选要参与批量添加的行（表头可全选）。");
           return;
         }
-        /** 记录批量开始时的黄线位置；批量内部会"顺移黄线"以便片段首尾相接，
-         *  批量结束后把黄线复位回来，避免黄线被顶到最后一段之后。 */
+        /** 记录批量开始时的黄线位置；批量内每加一条会顺移黄线到该块末尾（仅作进度提示），
+         *  各块实际起点为该角色轨当前末尾；结束后黄线复位。 */
         const playheadSecBefore = playheadSec;
         let added = 0;
         let skip = 0;
@@ -3178,7 +3702,7 @@
         const bAdd = document.createElement("button");
         bAdd.type = "button";
         bAdd.className = "toolbar-btn toolbar-batch-add";
-        bAdd.title = "添加到时间线（黄线位置）";
+        bAdd.title = "添加到时间线（接到该角色轨已有内容之后，不按黄线）";
         const addIco = document.createElement("span");
         addIco.className = "tb-ico";
         addIco.setAttribute("aria-hidden", "true");
@@ -3323,6 +3847,8 @@
         }
         const cacheHdr = (res.headers.get("X-Tts-Cache") || "").toLowerCase();
         row.ttsCacheBadge = cacheHdr === "hit" ? "hit" : "fresh";
+        const digH = normalizeTtsDigest(res.headers.get("X-Tts-Cache-Digest"));
+        if (digH) row.ttsCacheDigest = digH;
         const srH = res.headers.get("X-Sample-Rate");
         if (srH) sampleRate = parseInt(srH, 10) || sampleRate;
         const ab = await res.arrayBuffer();
@@ -3339,6 +3865,8 @@
         row._generating = false;
         syncRowGenUi(rowId);
         syncRowPlayUi(rowId);
+        syncTimelineClipsWithLineRow(rowId);
+        renderTimeline();
         return true;
       } catch (err) {
         row._generating = false;
@@ -3542,9 +4070,10 @@
 
     /**
      * @param {string} rowId
-     * @param {{ advancePlayhead?: boolean }} [opts]
+     * @param {{ advancePlayhead?: boolean, startSec?: number }} [opts]
      */
     function addRowToTimeline(rowId, opts) {
+      opts = opts || {};
       const row = lineRows.find((r) => r.id === rowId);
       if (!row || !row.buffer) {
         setStatus("请先点「生成」再添加到时间线。");
@@ -3554,13 +4083,18 @@
       if (!characters[idx]) return;
       const buf = dupAudioBuffer(row.buffer);
       const ch = characters[idx];
+      const tailSec = dialogueTrackTimelineEndSec(idx);
+      const useIntent =
+        opts && Number.isFinite(opts.startSec) && opts.startSec >= 0;
+      const startSec = useIntent ? Math.max(0, opts.startSec) : tailSec;
       const clipId = uid();
-      clips.push({
+      const dClip = normalizeTtsDigest(row.ttsCacheDigest);
+      const clipRow = {
         id: clipId,
         charIndex: idx,
         trackIndex: idx,
         text: row.text.trim(),
-        startSec: playheadSec,
+        startSec,
         buffer: buf,
         trimIn: 0,
         trimOut: 0,
@@ -3574,7 +4108,9 @@
         fadeOutSec: 0,
         ratePct: 100,
         sourceLineRowId: row.id,
-      });
+      };
+      if (dClip) clipRow.ttsCacheDigest = dClip;
+      clips.push(clipRow);
       autoExtendDuration();
       renderTimeline();
       selectClip(clipId);
@@ -3586,7 +4122,40 @@
           if (!playCtx) seekSyncVideoToTimeline(playheadSec);
         }
       }
-      setStatus("已从播放头位置添加到时间线。");
+      const roleLab = (ch && ch.name) || "角色" + (idx + 1);
+      setStatus(
+        useIntent
+          ? "已添加到「" + roleLab + "」轨约 " + fmtTime(startSec) + " 处。"
+          : "已追加到「" + roleLab + "」轨末尾（起点 " + fmtTime(tailSec) + "）。"
+      );
+    }
+
+    /** 将台词行最新内容与音频同步到时间线上所有引用该行的片段（不新建块） */
+    function syncTimelineClipsWithLineRow(rowId) {
+      const row = lineRows.find((r) => r.id === rowId);
+      if (!row) return 0;
+      const ix = Math.max(0, Math.min(characters.length - 1, row.charIndex | 0));
+      const roleNm = (characters[ix] && characters[ix].name) || "";
+      const dClip = normalizeTtsDigest(row.ttsCacheDigest);
+      let n = 0;
+      for (const c of clips) {
+        if (c.kind === "bg" || c.sourceLineRowId !== rowId) continue;
+        if (row.buffer) {
+          c.buffer = dupAudioBuffer(row.buffer);
+          normalizeClipTrim(c);
+        }
+        c.text = (row.text || "").trim();
+        c.charIndex = ix;
+        c.trackIndex = ix;
+        c.roleName = roleNm;
+        c.cfgValue = numOr(row.cfgValue, 2);
+        c.inferenceTimesteps = Math.round(numOr(row.inferenceTimesteps, 10));
+        if (dClip) c.ttsCacheDigest = dClip;
+        else delete c.ttsCacheDigest;
+        n++;
+      }
+      if (n) persistTimelineStateDebounced();
+      return n;
     }
 
     function drawWaveformOnCanvas(canvas, buffer, trimIn, trimOut, midIn, midOut) {
@@ -3695,6 +4264,59 @@
       sc.scrollLeft = Math.max(0, Math.min(maxScroll, sc.scrollLeft + delta));
     }
 
+    /**
+     * 波形/轨列在视口中的左右安全区与参考宽度（用于判断是否「宽于可视区」）。
+     * 不能用 #timelineScroll 整宽：左侧轨名列占宽约 --tl-label-w，用整宽会低估「宽块」→ 误走窄条分支，长块贴左/右时一点击就大幅横滚。
+     */
+    function timelineScrollWaveformViewport(sc) {
+      const sr = sc.getBoundingClientRect();
+      const margin = Math.min(80, Math.max(36, sc.clientWidth * 0.1));
+      const inner = document.getElementById("timelineInner");
+      const rh = inner && inner.querySelector(".timeline-ruler-host");
+      if (rh) {
+        const rhr = rh.getBoundingClientRect();
+        if (rhr.width > 60 && Number.isFinite(rhr.left)) {
+          return {
+            viewL: rhr.left + margin,
+            viewR: rhr.right - margin,
+            innerW: Math.max(120, rhr.width - 2 * margin),
+          };
+        }
+      }
+      const lab = timelineLabelPx();
+      const innerW = Math.max(120, sr.width - lab - 2 * margin);
+      return {
+        viewL: sr.left + lab + margin,
+        viewR: sr.right - margin,
+        innerW,
+      };
+    }
+
+    /** 选中或操作块贴左右边时，水平滚动 #timelineScroll 使块进入可视区（不滚整页） */
+    function scrollTimelineHorizontalIfClipOutOfView(domEl) {
+      const sc = document.getElementById("timelineScroll");
+      if (!sc || !domEl) return;
+      const vp = timelineScrollWaveformViewport(sc);
+      const cr = domEl.getBoundingClientRect();
+      const maxScroll = Math.max(0, sc.scrollWidth - sc.clientWidth);
+      /** 块比「波形可视区减边距」更宽：无法整段塞进视窗；若仍按窄块去贴左/右缘，点中间会猛滚到只露左缘或只露右缘 */
+      const wide = cr.width > vp.innerW + 0.5;
+      const viewL = vp.viewL;
+      const viewR = vp.viewR;
+      let delta = 0;
+      if (wide) {
+        const overlapsH = cr.right > viewL && cr.left < viewR;
+        if (overlapsH) return;
+        if (cr.right <= viewL) delta = cr.right - viewL;
+        else if (cr.left >= viewR) delta = cr.left - viewR;
+      } else {
+        if (cr.left < viewL) delta = cr.left - viewL;
+        else if (cr.right > viewR) delta = cr.right - viewR;
+      }
+      if (delta === 0) return;
+      sc.scrollLeft = Math.max(0, Math.min(maxScroll, sc.scrollLeft + delta));
+    }
+
     (function bindTimelineHoverClientXForSpace() {
       const sc = document.getElementById("timelineScroll");
       if (!sc) return;
@@ -3743,8 +4365,384 @@
       return labEl;
     }
 
+    function newDefaultScriptLineRow(charIndex) {
+      const maxC = Math.max(0, characters.length - 1);
+      const ci =
+        typeof charIndex === "number" && Number.isFinite(charIndex)
+          ? Math.max(0, Math.min(maxC, Math.trunc(charIndex)))
+          : 0;
+      return {
+        id: uid(),
+        charIndex: ci,
+        text: "",
+        cfgValue: 2,
+        inferenceTimesteps: 10,
+        ttsSeed: 0,
+        buffer: null,
+        ttsCacheBadge: "none",
+        batchSelected: true,
+      };
+    }
+
+    function hideTimelineEditLineFab() {
+      const fab = document.getElementById("timelineEditLineFab");
+      if (!fab) return;
+      fab.hidden = true;
+      fab.setAttribute("aria-hidden", "true");
+      fab.removeAttribute("data-bound-row-id");
+    }
+
+    function hideTimelineAddLineFab() {
+      const fab = document.getElementById("timelineAddLineFab");
+      if (!fab) return;
+      fab.hidden = true;
+      fab.setAttribute("aria-hidden", "true");
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg || typeof dlg.open === "undefined" || !dlg.open) {
+        timelineAddLineFabIntentStartSec = null;
+      }
+      hideTimelineEditLineFab();
+    }
+
+    /** 点在片段上下缝隙（.clip 未铺满轨高）时 target 不是 .clip；返回命中的 .clip 元素以便与直接点块一致地选中 */
+    function clipElNearLanePointer(lane, clientX, clientY, padPx) {
+      const pad = padPx == null ? 8 : padPx;
+      if (!lane || typeof lane.querySelectorAll !== "function") return null;
+      for (const clip of lane.querySelectorAll(".clip")) {
+        const r = clip.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) continue;
+        if (
+          clientX >= r.left - pad &&
+          clientX <= r.right + pad &&
+          clientY >= r.top - pad &&
+          clientY <= r.bottom + pad
+        ) {
+          return clip;
+        }
+      }
+      return null;
+    }
+
+    function showTimelineAddLineFab(clientX, clientY, charTrackIndex) {
+      hideTimelineEditLineFab();
+      const fab = document.getElementById("timelineAddLineFab");
+      const sc = document.getElementById("timelineScroll");
+      if (!fab || !sc) return;
+      if (!characters.length) {
+        hideTimelineAddLineFab();
+        setStatus("请先在「角色」表格添加至少一个角色，再在时间线添加台词。");
+        return;
+      }
+      const ti = Math.max(0, Math.min(characters.length - 1, charTrackIndex | 0));
+      timelineAddLineFabTrackIdx = ti;
+      timelineAddLineFabIntentStartSec = timeFromClientX(clientX);
+      const r = sc.getBoundingClientRect();
+      let left = clientX - r.left + sc.scrollLeft;
+      let top = clientY - r.top + sc.scrollTop;
+      const pad = 8;
+      fab.hidden = false;
+      fab.removeAttribute("aria-hidden");
+      const fw = Math.max(52, fab.offsetWidth || 52);
+      const fh = Math.max(20, fab.offsetHeight || 20);
+      left = left - fw / 2;
+      top = top - fh / 2;
+      left = Math.max(pad, Math.min(Math.max(pad, sc.scrollWidth - fw - pad), left));
+      top = Math.max(pad, Math.min(Math.max(pad, sc.clientHeight - fh - pad), top));
+      fab.style.left = left + "px";
+      fab.style.top = top + "px";
+    }
+
+    /** 选中台词时间线块后出现：打开与「添加台词」同一弹窗并绑定已有台词行 */
+    function showTimelineEditLineFab(clientX, clientY, lineRowId) {
+      hideTimelineAddLineFab();
+      const fab = document.getElementById("timelineEditLineFab");
+      const sc = document.getElementById("timelineScroll");
+      if (!fab || !sc || !lineRowId) return;
+      const row = lineRows.find((r) => r.id === lineRowId);
+      if (!row) return;
+      fab.dataset.boundRowId = lineRowId;
+      const r = sc.getBoundingClientRect();
+      let left = clientX - r.left + sc.scrollLeft;
+      let top = clientY - r.top + sc.scrollTop;
+      const pad = 8;
+      fab.hidden = false;
+      fab.removeAttribute("aria-hidden");
+      const fw = Math.max(52, fab.offsetWidth || 60);
+      const fh = Math.max(20, fab.offsetHeight || 20);
+      left = left - fw / 2;
+      top = top - fh - 4;
+      left = Math.max(pad, Math.min(Math.max(pad, sc.scrollWidth - fw - pad), left));
+      top = Math.max(pad, Math.min(Math.max(pad, sc.clientHeight - fh - pad), top));
+      fab.style.left = left + "px";
+      fab.style.top = top + "px";
+    }
+
+    function openAddLineDialogForLineRowEdit(rowId) {
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg) return;
+      if (typeof dlg.showModal !== "function") {
+        setStatus("当前浏览器不支持弹窗（dialog），无法打开编辑台词窗口。");
+        return;
+      }
+      if (dlg.open) return;
+      const row = lineRows.find((r) => r.id === rowId);
+      if (!row) {
+        setStatus("未找到对应台词行。");
+        return;
+      }
+      timelineAddLineDraftRowId = null;
+      timelineAddLineDialogEditRowId = row.id;
+      const titleEl = document.getElementById("addLineDialogTitle");
+      if (titleEl) titleEl.textContent = "编辑台词";
+      fillAddLineDialogFromBoundRow();
+      dlg.showModal();
+      hideTimelineAddLineFab();
+      syncAddLineDialogGenPlayUi();
+      requestAnimationFrame(() => {
+        const te = document.getElementById("addLineDlgText");
+        if (te) te.focus();
+      });
+    }
+
+    function fillAddLineDialogCharSelect() {
+      const sel = document.getElementById("addLineDlgChar");
+      if (!sel) return;
+      sel.innerHTML = "";
+      characters.forEach((c, i) => {
+        const o = document.createElement("option");
+        o.value = String(i);
+        o.textContent = c.name || "角色" + (i + 1);
+        sel.appendChild(o);
+      });
+    }
+
+    function timelineAddLineDialogBoundRowId() {
+      return timelineAddLineDraftRowId || timelineAddLineDialogEditRowId;
+    }
+
+    function applyAddLineDialogFormToBoundRow() {
+      const bid = timelineAddLineDialogBoundRowId();
+      if (!bid) return null;
+      const row = lineRows.find((r) => r.id === bid);
+      if (!row) return null;
+      const sel = document.getElementById("addLineDlgChar");
+      const textEl = document.getElementById("addLineDlgText");
+      const cfgEl = document.getElementById("addLineDlgCfg");
+      const stepsEl = document.getElementById("addLineDlgSteps");
+      const seedEl = document.getElementById("addLineDlgSeed");
+      row.charIndex = Math.max(
+        0,
+        Math.min(characters.length - 1, parseInt(sel ? sel.value : "0", 10) || 0)
+      );
+      row.text = textEl && textEl.value ? String(textEl.value) : "";
+      let cfg = parseFloat(cfgEl && cfgEl.value);
+      if (!Number.isFinite(cfg)) cfg = 2;
+      row.cfgValue = Math.max(0.5, Math.min(5, cfg));
+      let steps = parseInt(stepsEl && stepsEl.value, 10);
+      if (!Number.isFinite(steps)) steps = 10;
+      row.inferenceTimesteps = Math.max(1, Math.min(60, steps));
+      let seed = parseInt(seedEl && seedEl.value, 10);
+      if (!Number.isFinite(seed)) seed = 0;
+      row.ttsSeed = Math.trunc(seed);
+      return row;
+    }
+
+    function fillAddLineDialogFromBoundRow() {
+      const bid = timelineAddLineDialogBoundRowId();
+      if (!bid) return;
+      const row = lineRows.find((r) => r.id === bid);
+      if (!row) return;
+      fillAddLineDialogCharSelect();
+      const sel = document.getElementById("addLineDlgChar");
+      if (sel) sel.value = String(row.charIndex);
+      const te = document.getElementById("addLineDlgText");
+      const cfgE = document.getElementById("addLineDlgCfg");
+      const stE = document.getElementById("addLineDlgSteps");
+      const sdE = document.getElementById("addLineDlgSeed");
+      if (te) te.value = row.text || "";
+      if (cfgE) cfgE.value = String(row.cfgValue != null ? row.cfgValue : 2);
+      if (stE) stE.value = String(row.inferenceTimesteps != null ? row.inferenceTimesteps : 10);
+      if (sdE) sdE.value = String(row.ttsSeed != null ? row.ttsSeed : 0);
+    }
+
+    function discardAddLineDialogDraftIfAny() {
+      if (!timelineAddLineDraftRowId) return;
+      const id = timelineAddLineDraftRowId;
+      timelineAddLineDraftRowId = null;
+      lineRows = lineRows.filter((r) => r.id !== id);
+      persistLineRows();
+      renderLineRows();
+    }
+
+    function syncAddLineDialogDraftToTable() {
+      if (!timelineAddLineDialogBoundRowId()) return;
+      const row = applyAddLineDialogFormToBoundRow();
+      if (!row) return;
+      invalidateRowTtsBadge(row);
+      persistLineRows();
+      renderLineRows();
+    }
+
+    function openAddLineDialogFromTimelineFab() {
+      if (!characters.length) {
+        setStatus("请先在「角色」区添加至少一个角色。");
+        return;
+      }
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg) return;
+      if (typeof dlg.showModal !== "function") {
+        setStatus("当前浏览器不支持弹窗（dialog），无法打开添加台词窗口。");
+        return;
+      }
+      if (dlg.open) return;
+      timelineAddLineDialogEditRowId = null;
+      const titleEl = document.getElementById("addLineDialogTitle");
+      if (titleEl) titleEl.textContent = "添加台词";
+      const row = newDefaultScriptLineRow(timelineAddLineFabTrackIdx);
+      row._timelineAddDraft = true;
+      lineRows.push(row);
+      timelineAddLineDraftRowId = row.id;
+      persistLineRows();
+      renderLineRows();
+      fillAddLineDialogFromBoundRow();
+      dlg.showModal();
+      hideTimelineAddLineFab();
+      syncAddLineDialogGenPlayUi();
+      requestAnimationFrame(() => {
+        const te = document.getElementById("addLineDlgText");
+        if (te) te.focus();
+      });
+    }
+
+    function commitAddLineDialog(andGenerate) {
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg) return;
+      if (!timelineAddLineDraftRowId) {
+        if (andGenerate && timelineAddLineDialogEditRowId) {
+          const row2 = lineRows.find((r) => r.id === timelineAddLineDialogEditRowId);
+          if (row2) {
+            applyAddLineDialogFormToBoundRow();
+            persistLineRows();
+            renderLineRows();
+            setStatus("已根据弹窗内容更新该行，并开始生成。");
+            void generateRow(row2.id);
+          }
+          return;
+        }
+        if (!andGenerate) {
+          const fabStartSec =
+            timelineAddLineFabIntentStartSec != null &&
+            Number.isFinite(timelineAddLineFabIntentStartSec)
+              ? timelineAddLineFabIntentStartSec
+              : undefined;
+          const rowClose = timelineAddLineDialogEditRowId
+            ? lineRows.find((r) => r.id === timelineAddLineDialogEditRowId)
+            : null;
+          if (rowClose) {
+            applyAddLineDialogFormToBoundRow();
+            persistLineRows();
+            renderLineRows();
+          }
+          timelineAddLineDialogEditRowId = null;
+          if (rowClose) {
+            if (lineRowTimelineClips(rowClose.id).length) {
+              syncTimelineClipsWithLineRow(rowClose.id);
+              renderTimeline();
+              setStatus(
+                rowClose.buffer
+                  ? "已更新台词行，并与时间线上已有片段同步音频。"
+                  : "已更新台词行，并已同步到时间线片段（文案与参数；生成音频后会自动对齐波形）。"
+              );
+            } else if (rowClose.buffer) {
+              addRowToTimeline(
+                rowClose.id,
+                fabStartSec !== undefined ? { startSec: fabStartSec } : {}
+              );
+            } else {
+              setStatus("已确认并更新该行。");
+            }
+          }
+          dlg.close();
+          hideTimelineAddLineFab();
+        }
+        return;
+      }
+      const row = lineRows.find((r) => r.id === timelineAddLineDraftRowId);
+      if (!row) {
+        timelineAddLineDraftRowId = null;
+        dlg.close();
+        return;
+      }
+      applyAddLineDialogFormToBoundRow();
+      delete row._timelineAddDraft;
+      timelineAddLineDraftRowId = null;
+      if (andGenerate) {
+        timelineAddLineDialogEditRowId = row.id;
+      } else {
+        timelineAddLineDialogEditRowId = null;
+      }
+      persistLineRows();
+      renderLineRows();
+      const fabStartSec =
+        timelineAddLineFabIntentStartSec != null &&
+        Number.isFinite(timelineAddLineFabIntentStartSec)
+          ? timelineAddLineFabIntentStartSec
+          : undefined;
+      if (!andGenerate) {
+        if (row.buffer) {
+          addRowToTimeline(
+            row.id,
+            fabStartSec !== undefined ? { startSec: fabStartSec } : {}
+          );
+        } else {
+          setStatus("已确认台词行。");
+        }
+        dlg.close();
+        hideTimelineAddLineFab();
+      } else {
+        setStatus("已确认台词行并开始生成（弹窗保持打开，可继续改）。");
+      }
+      requestAnimationFrame(() => {
+        const tr = document.querySelector(
+          '[data-line-row-id="' + String(row.id).replace(/"/g, "") + '"]'
+        );
+        if (tr) tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+      if (andGenerate) generateRow(row.id);
+    }
+
+    function commitAddLineDialogPlay() {
+      const dlg = document.getElementById("addLineDialog");
+      if (!dlg) return;
+      const bid = timelineAddLineDraftRowId || timelineAddLineDialogEditRowId;
+      if (!bid) return;
+      const row = lineRows.find((r) => r.id === bid);
+      if (!row) {
+        timelineAddLineDraftRowId = null;
+        timelineAddLineDialogEditRowId = null;
+        dlg.close();
+        return;
+      }
+      applyAddLineDialogFormToBoundRow();
+      if (row._timelineAddDraft) delete row._timelineAddDraft;
+      timelineAddLineDraftRowId = null;
+      timelineAddLineDialogEditRowId = row.id;
+      persistLineRows();
+      renderLineRows();
+      syncAddLineDialogGenPlayUi();
+      setStatus("已确认该行；若已生成将开始播放预览（弹窗保持打开）。");
+      requestAnimationFrame(() => {
+        const tr = document.querySelector(
+          '[data-line-row-id="' + String(row.id).replace(/"/g, "") + '"]'
+        );
+        if (tr) tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        void playRow(row.id);
+      });
+    }
+
     function renderTimeline() {
       stopPlayLineAnim();
+      hideTimelineAddLineFab();
       pixelsPerSec = parseFloat(document.getElementById("pps").value) || 72;
       axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
       playheadSec = Math.max(0, Math.min(axisEndSec, playheadSec));
@@ -3791,6 +4789,7 @@
       ruler.addEventListener("pointerdown", (e) => {
         if (e.target.closest(".clip")) return;
         if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+        hideTimelineAddLineFab();
         selectedClipId = null;
         document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
         updateClipTrimBar();
@@ -3813,7 +4812,13 @@
         lane.style.width = W + "px";
         lane.addEventListener("pointerdown", (e) => {
           if (e.target.closest(".clip")) return;
+          const nearClip = clipElNearLanePointer(lane, e.clientX, e.clientY);
+          if (nearClip && nearClip.dataset.clipId) {
+            selectClip(nearClip.dataset.clipId);
+            return;
+          }
           if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+          hideTimelineAddLineFab();
           selectedClipId = null;
           document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
           updateClipTrimBar();
@@ -3826,7 +4831,7 @@
           const h = document.createElement("div");
           h.className = "bg-lane-hint";
           h.textContent = bg.buffer
-            ? "素材已载入 · 点上表「添加到时间线」放到黄线处"
+            ? "素材已载入 · 点上表「添加到时间线」接到该背景轨末尾"
             : "先在上表「选择音轨」或路径回车载入 wav";
           lane.appendChild(h);
         } else {
@@ -3849,11 +4854,18 @@
 
         lane.addEventListener("pointerdown", (e) => {
           if (e.target.closest(".clip")) return;
+          const nearClip = clipElNearLanePointer(lane, e.clientX, e.clientY);
+          if (nearClip && nearClip.dataset.clipId) {
+            selectClip(nearClip.dataset.clipId);
+            return;
+          }
           if (e.target.closest("#playheadGlobal, #playEndGlobal")) return;
+          if (e.target.closest("#timelineAddLineFab")) return;
           selectedClipId = null;
           document.querySelectorAll(".clip").forEach((x) => x.classList.remove("selected"));
           updateClipTrimBar();
           updateClipSelectionGuides();
+          showTimelineAddLineFab(e.clientX, e.clientY, trackIndex);
         });
 
         clips
@@ -4107,6 +5119,12 @@
       } catch (_) {}
     }
 
+    /** 参考视频已选 src（可与无音频时间线一起用空格走画面） */
+    function syncVideoHasSrc() {
+      const v = document.getElementById("syncVideo");
+      return !!(v && v.src);
+    }
+
     /** 混音起播：与 Web Audio 同一起点让 video 时钟往前走，减少逐帧 seek */
     function startSyncVideoWithMixPlayback(fromSec) {
       const v = document.getElementById("syncVideo");
@@ -4256,6 +5274,7 @@
             v.load();
           } catch (_) {}
           hint.textContent = "未加载";
+          updateClipTrimBar();
           return;
         }
         syncVideoObjectUrl = URL.createObjectURL(f);
@@ -4268,6 +5287,7 @@
           applySyncVideoZoomPan();
         };
         v.addEventListener("loadedmetadata", onMeta, { once: true });
+        updateClipTrimBar();
       });
       clr.addEventListener("click", () => {
         inp.value = "";
@@ -4289,6 +5309,7 @@
         } catch (_) {}
         hint.textContent = "未加载";
         resetSyncVideoZoomPan();
+        updateClipTrimBar();
       });
     })();
 
@@ -4377,6 +5398,7 @@
       const panel = document.getElementById("syncVideoFloat");
       const header = document.getElementById("syncVideoFloatHeader");
       const btnClose = document.getElementById("syncVideoFloatClose");
+      const btnCollapse = document.getElementById("syncVideoFloatCollapse");
       const resizeEl = document.getElementById("syncVideoFloatResize");
       if (!panel || !header || !btnClose || !resizeEl) return;
 
@@ -4386,6 +5408,24 @@
       const MIN_FLOAT_W = 240;
       const MIN_FLOAT_H = 130;
 
+      function setSyncVideoFloatCollapsed(collapsed) {
+        if (collapsed) {
+          panel.classList.add("sync-video-float--collapsed");
+          if (btnCollapse) {
+            btnCollapse.textContent = "+";
+            btnCollapse.title = "展开";
+            btnCollapse.setAttribute("aria-expanded", "false");
+          }
+        } else {
+          panel.classList.remove("sync-video-float--collapsed");
+          if (btnCollapse) {
+            btnCollapse.textContent = "\u2212";
+            btnCollapse.title = "折叠";
+            btnCollapse.setAttribute("aria-expanded", "true");
+          }
+        }
+      }
+
       /** 仅显示参考视频浮窗；每次打开回到屏幕居中 */
       function openSyncVideoFloatPanel() {
         panel.hidden = false;
@@ -4394,6 +5434,7 @@
         panel.style.left = "50%";
         panel.style.top = "50%";
         panel.style.transform = "translate(-50%, -50%)";
+        setSyncVideoFloatCollapsed(false);
       }
 
       const btnLoadTransport = document.getElementById("loadVideo");
@@ -4406,6 +5447,15 @@
       btnClose.addEventListener("click", () => {
         panel.hidden = true;
       });
+
+      if (btnCollapse) {
+        btnCollapse.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const next = !panel.classList.contains("sync-video-float--collapsed");
+          setSyncVideoFloatCollapsed(next);
+        });
+      }
 
       header.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
@@ -4565,15 +5615,23 @@
             trimIn0: c0.trimIn || 0,
             trimOut0: c0.trimOut || 0,
             startSec0: c0.startSec,
+            startScrollLeft: (() => {
+              const s = document.getElementById("timelineScroll");
+              return s ? s.scrollLeft : 0;
+            })(),
           };
           handle.setPointerCapture(e.pointerId);
           suppressPlayheadPointer(true);
 
           function onTrimMove(ev) {
             if (!trimDrag || trimDrag.clipId !== cl.id) return;
+            autoScrollTimelineDuringHeadDrag(ev.clientX);
             const c1 = clips.find((c) => c.id === cl.id);
             if (!c1) return;
-            const dSec = (ev.clientX - trimDrag.startClientX) / pixelsPerSec;
+            const scM = document.getElementById("timelineScroll");
+            const sl = scM ? scM.scrollLeft : 0;
+            const dSec =
+              (ev.clientX - trimDrag.startClientX + (sl - trimDrag.startScrollLeft)) / pixelsPerSec;
             if (edge === "L") {
               c1.trimIn = trimDrag.trimIn0 + dSec;
             } else {
@@ -4616,30 +5674,35 @@
         if (e.target.closest(".clip-handle-l, .clip-handle-r")) return;
         e.stopPropagation();
         e.preventDefault();
-        selectClip(cl.id);
+        selectClip(cl.id, { editFabClient: { x: e.clientX, y: e.clientY } });
         const clRef = clips.find((c) => c.id === cl.id);
         if (!clRef) return;
         const capPid = e.pointerId;
+        const scDrag = document.getElementById("timelineScroll");
         suppressPlayheadPointer(true);
         try {
           el.setPointerCapture(capPid);
         } catch (_) {}
-        drag = {
+        timelineClipDrag = {
           clipId: cl.id,
           el,
           startClientX: e.clientX,
           startClientY: e.clientY,
           startLeftSec: clRef.startSec,
           startTrack: clRef.trackIndex,
+          startScrollLeft: scDrag ? scDrag.scrollLeft : 0,
         };
 
         function onMove(ev) {
-          if (!drag || drag.clipId !== cl.id) return;
-          const c0 = clips.find((c) => c.id === drag.clipId);
+          if (!timelineClipDrag || timelineClipDrag.clipId !== cl.id) return;
+          autoScrollTimelineDuringHeadDrag(ev.clientX);
+          const c0 = clips.find((c) => c.id === timelineClipDrag.clipId);
           if (!c0) return;
-          const dx = ev.clientX - drag.startClientX;
-          c0.startSec = clampClipStartSec(c0, drag.startLeftSec + dx / pixelsPerSec);
-          layoutClipElement(drag.el, c0);
+          const scM = document.getElementById("timelineScroll");
+          const sl = scM ? scM.scrollLeft : 0;
+          const dx = ev.clientX - timelineClipDrag.startClientX + (sl - timelineClipDrag.startScrollLeft);
+          c0.startSec = clampClipStartSec(c0, timelineClipDrag.startLeftSec + dx / pixelsPerSec);
+          layoutClipElement(timelineClipDrag.el, c0);
           updateClipSelectionGuides();
         }
 
@@ -4651,14 +5714,16 @@
             el.releasePointerCapture(capPid);
           } catch (_) {}
           suppressPlayheadPointer(false);
-          if (!drag || drag.clipId !== cl.id) return;
-          const c0 = clips.find((c) => c.id === drag.clipId);
-          const d = drag;
-          drag = null;
+          if (!timelineClipDrag || timelineClipDrag.clipId !== cl.id) return;
+          const c0 = clips.find((c) => c.id === timelineClipDrag.clipId);
+          const d = timelineClipDrag;
+          timelineClipDrag = null;
           if (!c0) return;
-          const dx = ev.clientX - d.startClientX;
+          const scEnd = document.getElementById("timelineScroll");
+          const slEnd = scEnd ? scEnd.scrollLeft : 0;
+          const dxEff = ev.clientX - d.startClientX + (slEnd - d.startScrollLeft);
           const dy = ev.clientY - d.startClientY;
-          const moved = Math.hypot(dx, dy) > 4;
+          const moved = Math.hypot(dxEff, dy) > 4;
           if (!moved) {
             return;
           }
@@ -5145,7 +6210,8 @@
       bgTracks.forEach((t) => {
         const tr = document.createElement("tr");
         tr.setAttribute("data-bg-row", t.id);
-        const placedTitle = "把已解码的背景音放到时间线当前黄线位置（可多次添加生成多段）；之后选中片段可在顶部调音量 / 淡入 / 淡出";
+        const placedTitle =
+          "把已解码的背景音接到该背景轨已有内容的末尾（不按黄线，可多次添加多段）；之后选中片段可在顶部调音量 / 淡入 / 淡出";
         tr.innerHTML = `
           <td><input type="text" data-bg="note" data-id="${t.id}" value="${escapeAttr(t.note)}" placeholder="如：环境、BGM" /></td>
           <td><input type="text" data-bg="path" data-id="${t.id}" value="${escapeAttr(t.path)}" placeholder="完整路径 · 回车载入；也可直接点「添加到时间线」自动载入" title="粘贴资源管理器路径后回车立刻载入；或直接点「添加到时间线」会先载入再添加" /></td>
@@ -5228,6 +6294,8 @@
             }
           }
           const bi = bgTracks.findIndex((x) => x.id === id);
+          if (bi < 0) return;
+          const tailBg = bgTrackTimelineEndSec(bi);
           const newClip = {
             id: uid(),
             kind: "bg",
@@ -5235,7 +6303,7 @@
             trackIndex: -1,
             bgTrackIndex: bi,
             text: "",
-            startSec: Math.max(0, playheadSec || 0),
+            startSec: tailBg,
             buffer: row.buffer,
             trimIn: 0,
             trimOut: 0,
@@ -5253,8 +6321,11 @@
           renderTimeline();
           autoExtendDuration();
           setStatus(
-            "已把背景音「" + (row.note || row.path || "?") + "」放到时间线（起点 " +
-              fmtTime(newClip.startSec) + "），可选中/拖动/裁剪；Delete 删除。"
+            "已把背景音「" +
+              (row.note || row.path || "?") +
+              "」追加到该背景轨末尾（起点 " +
+              fmtTime(newClip.startSec) +
+              "），可选中/拖动/裁剪；Delete 删除。"
           );
         });
       });
@@ -5309,19 +6380,70 @@
     });
 
     document.getElementById("btnAddLine").addEventListener("click", () => {
-      lineRows.push({
-        id: uid(),
-        charIndex: 0,
-        text: "",
-        cfgValue: 2,
-        inferenceTimesteps: 10,
-        ttsSeed: 0,
-        buffer: null,
-        ttsCacheBadge: "none",
-        batchSelected: true,
-      });
+      lineRows.push(newDefaultScriptLineRow(0));
       renderLineRows();
     });
+
+    (function bindTimelineAddLineFabAndDialog() {
+      const fab = document.getElementById("timelineAddLineFab");
+      const fabEdit = document.getElementById("timelineEditLineFab");
+      const dlg = document.getElementById("addLineDialog");
+      const btnSave = document.getElementById("addLineDlgSave");
+      const btnCancel = document.getElementById("addLineDlgCancel");
+      const btnGen = document.getElementById("addLineDlgGen");
+      const btnPlay = document.getElementById("addLineDlgPlay");
+      const sc = document.getElementById("timelineScroll");
+      if (!fab || !fabEdit || !dlg || !btnSave || !btnCancel || !btnGen || !btnPlay || !sc) return;
+      fab.addEventListener("pointerdown", (e) => e.stopPropagation());
+      fab.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        openAddLineDialogFromTimelineFab();
+      });
+      fabEdit.addEventListener("pointerdown", (e) => e.stopPropagation());
+      fabEdit.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const rid = fabEdit.dataset.boundRowId;
+        if (rid) openAddLineDialogForLineRowEdit(rid);
+      });
+      btnCancel.addEventListener("click", () => {
+        discardAddLineDialogDraftIfAny();
+        dlg.close();
+      });
+      btnSave.addEventListener("click", () => {
+        commitAddLineDialog(false);
+      });
+      btnGen.addEventListener("click", () => {
+        commitAddLineDialog(true);
+      });
+      btnPlay.addEventListener("click", () => {
+        commitAddLineDialogPlay();
+      });
+      dlg.addEventListener("close", () => {
+        hideTimelineAddLineFab();
+        discardAddLineDialogDraftIfAny();
+        timelineAddLineDialogEditRowId = null;
+        timelineAddLineFabIntentStartSec = null;
+      });
+      ["addLineDlgChar", "addLineDlgText", "addLineDlgCfg", "addLineDlgSteps", "addLineDlgSeed"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (id === "addLineDlgChar") {
+          el.addEventListener("change", () => {
+            syncAddLineDialogDraftToTable();
+          });
+        } else {
+          el.addEventListener("input", () => {
+            syncAddLineDialogDraftToTable();
+          });
+          el.addEventListener("change", () => {
+            syncAddLineDialogDraftToTable();
+          });
+        }
+      });
+      sc.addEventListener("scroll", hideTimelineAddLineFab, { passive: true });
+    })();
 
     document.getElementById("pps").addEventListener("change", renderTimeline);
     document.getElementById("durSec").addEventListener("change", () => {
@@ -5400,8 +6522,9 @@
     /** 混音播放：从时间轴 from 秒起播至红线 endAt（与按钮「播放音频」相同逻辑） */
     function startMixPlaybackFromTimelineSec(fromSec) {
       stopPlay();
-      if (!clips.length) {
-        setStatus("时间线上没有可播片段。");
+      const hasSyncVideo = syncVideoHasSrc();
+      if (!clips.length && !hasSyncVideo) {
+        setStatus("时间线上没有可播片段。请先添加片段或加载参考视频。");
         return;
       }
       let from = Number(fromSec);
@@ -5409,6 +6532,9 @@
       from = Math.max(0, Math.min(axisEndSec, from));
       const AC = window.AudioContext || window.webkitAudioContext;
       playCtx = new AC({ sampleRate: sampleRate });
+      if (playCtx.state === "suspended") {
+        void playCtx.resume();
+      }
       const t0 = playCtx.currentTime + 0.08;
       /** 时间轴上红线位置（秒），播放到此停止 */
       const endAt = Math.max(from, Math.min(axisEndSec, playEndSec));
@@ -5492,19 +6618,28 @@
       mixPlayEndSec = endAt;
       playLineSec = from;
       updatePlayLineEl();
-      setPlayLineVisible(scheduled > 0);
+      const videoOnlyGap = hasSyncVideo && endAt > from && scheduled === 0;
+      setPlayLineVisible(scheduled > 0 || videoOnlyGap);
       stopPlayLineAnim();
-      if (scheduled > 0) {
-        startSyncVideoWithMixPlayback(from);
+      if (scheduled > 0 || videoOnlyGap) {
+        if (hasSyncVideo) startSyncVideoWithMixPlayback(from);
         playLineRaf = requestAnimationFrame(playMixTick);
       } else {
-        try { playCtx.close(); } catch (_) {}
+        try {
+          playCtx.close();
+        } catch (_) {}
         playCtx = null;
       }
       setStatus(
-        scheduled
+        scheduled > 0
           ? "从 " + fmtTime(from) + " 起播，到 " + fmtTime(endAt) + "（红线）停 · 绿线为进度 · 每个片段使用各自的『音速』"
-          : fmtTime(from) +
+          : videoOnlyGap
+            ? "从 " +
+              fmtTime(from) +
+              " 起参考视频与绿线进度（本段无音频片段），到 " +
+              fmtTime(endAt) +
+              "（红线）停"
+            : fmtTime(from) +
               " ～ 红线 " +
               fmtTime(endAt) +
               " 区间内没有可播片段。"
