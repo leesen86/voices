@@ -276,6 +276,18 @@
     .toolbar-btn.toolbar-transport-vid .tb-ico {
       color: #ea580c;
     }
+    .toolbar-btn.toolbar-export-srt {
+      background: #ecfeff;
+      border-color: #67e8f9;
+      color: #0e7490;
+    }
+    .toolbar-btn.toolbar-export-srt:hover:not(:disabled) {
+      background: #cffafe;
+      border-color: #22d3ee;
+    }
+    .toolbar-btn.toolbar-export-srt .tb-ico {
+      color: #0891b2;
+    }
     /* 台词区底部工具栏 */
     .script-toolbar .toolbar-btn {
       display: inline-flex;
@@ -1547,6 +1559,14 @@
           title="导出时间线总混音：与「播放音频」相同区间——从黄线起至红线止，未静音轨道叠加为单声道 WAV"
         >
           <span class="tb-ico" aria-hidden="true">⬇</span><span class="tb-lab">导出音频</span>
+        </button>
+        <button
+          type="button"
+          class="toolbar-btn toolbar-export-srt"
+          id="btnExportSrt"
+          title="导出 SubRip（.srt）：台词轨片段文案；时间码与「导出音频」一致——从黄线到红线，与 example.srt 相同格式（HH:MM:SS,mmm）"
+        >
+          <span class="tb-ico" aria-hidden="true">📝</span><span class="tb-lab">导出字幕</span>
         </button>
         <button type="button" class="toolbar-btn toolbar-transport-vid" id="btnExportVideo">
           <span class="tb-ico" aria-hidden="true">🎞</span><span class="tb-lab">导出视频</span>
@@ -5108,6 +5128,73 @@
       return String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
     }
 
+    /** SubRip 时间码：HH:MM:SS,mmm（与 example.srt 一致） */
+    function formatSrtTimestamp(sec) {
+      let s = Math.max(0, sec);
+      let ms = Math.round((s - Math.floor(s)) * 1000);
+      s = Math.floor(s);
+      if (ms >= 1000) {
+        ms -= 1000;
+        s += 1;
+      }
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const se = s % 60;
+      return (
+        String(h).padStart(2, "0") +
+        ":" +
+        String(m).padStart(2, "0") +
+        ":" +
+        String(se).padStart(2, "0") +
+        "," +
+        String(ms).padStart(3, "0")
+      );
+    }
+
+    /** 与「导出音频」相同的黄线～红线区间（秒） */
+    function exportAudioWindowSec() {
+      axisEndSec = parseFloat(document.getElementById("durSec").value) || 45;
+      const from = Math.max(0, Math.min(axisEndSec, playheadSec));
+      let pe = playEndSec;
+      if (!Number.isFinite(pe) || pe <= 0) pe = axisEndSec;
+      pe = Math.max(0, Math.min(axisEndSec, pe));
+      if (pe < from) pe = axisEndSec;
+      const endAt = Math.max(from, pe);
+      return { from, endAt, axisEndSec };
+    }
+
+    function buildTimelineDialogueSrtInWindow(from, endAt) {
+      const cues = [];
+      for (const c of clips) {
+        if (!c || !c.buffer || c.kind === "bg") continue;
+        const text = String(c.text || "").trim();
+        if (!text) continue;
+        const t0 = clipTimelineLeftSec(c);
+        const t1 = t0 + clipTimelinePlayDur(c);
+        if (t1 <= from || t0 >= endAt) continue;
+        const a = Math.max(from, t0);
+        const b = Math.min(endAt, t1);
+        if (b - a < MIN_CLIP_SEC) continue;
+        cues.push({
+          t0: a,
+          t1: b,
+          text,
+          track: c.trackIndex | 0,
+          id: c.id,
+        });
+      }
+      cues.sort((x, y) => (x.t0 !== y.t0 ? x.t0 - y.t0 : x.track !== y.track ? x.track - y.track : String(x.id).localeCompare(String(y.id))));
+      const parts = [];
+      let idx = 1;
+      for (const q of cues) {
+        parts.push(String(idx++));
+        parts.push(formatSrtTimestamp(q.t0) + " --> " + formatSrtTimestamp(q.t1));
+        parts.push(q.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n"));
+        parts.push("");
+      }
+      return parts.join("\n").replace(/\n+$/, "") + (parts.length ? "\n" : "");
+    }
+
     function seekSyncVideoToTimeline(sec) {
       const v = document.getElementById("syncVideo");
       if (!v || !v.src) return;
@@ -6952,6 +7039,37 @@
           "～红线 " +
           fmtTime(endAt) +
           "，与「播放音频」区间一致；多轨叠加后峰值归一）"
+      );
+    });
+
+    document.getElementById("btnExportSrt").addEventListener("click", () => {
+      const { from, endAt } = exportAudioWindowSec();
+      if (endAt <= from) {
+        setStatus("红线不在黄线之后：请把红线拖到黄线右边后再导出字幕。");
+        return;
+      }
+      const body = buildTimelineDialogueSrtInWindow(from, endAt);
+      if (!String(body || "").trim()) {
+        setStatus("当前黄线～红线区间内没有可导出的台词字幕（需台词轨片段且含文案）。");
+        return;
+      }
+      const blob = new Blob(["\ufeff" + body], { type: "text/plain;charset=utf-8" });
+      const name = `dubbing_timeline_${new Date().toISOString().replace(/[:.]/g, "-")}.srt`;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      setStatus(
+        "已导出字幕 " +
+          name +
+          "（SubRip；黄线 " +
+          fmtTime(from) +
+          "～红线 " +
+          fmtTime(endAt) +
+          "，与「导出音频」区间一致）"
       );
     });
 
