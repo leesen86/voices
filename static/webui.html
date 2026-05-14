@@ -3600,7 +3600,7 @@
               continue;
             }
           }
-          addRowToTimeline(row.id, { advancePlayhead: true });
+          addRowToTimeline(row.id, { advancePlayhead: false });
           added++;
         }
         playheadSec = Math.max(0, Math.min(axisEndSec, playheadSecBefore));
@@ -4804,10 +4804,6 @@
       syncAddLineDialogGenPlayUi();
       setStatus("已确认该行；若已生成将开始播放预览（弹窗保持打开）。");
       requestAnimationFrame(() => {
-        const tr = document.querySelector(
-          '[data-line-row-id="' + String(row.id).replace(/"/g, "") + '"]'
-        );
-        if (tr) tr.scrollIntoView({ block: "nearest", behavior: "smooth" });
         void playRow(row.id);
       });
     }

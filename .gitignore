@@ -1,3 +1,4 @@
+.claude/
 bak/
 model/__pycache__/
 model/VoxCPM2/
