@@ -1,4 +1,6 @@
 bak/
-model/
+model/__pycache__/
+model/VoxCPM2/
+model/OmniVoice
 tts_cache/
 __pycache__/

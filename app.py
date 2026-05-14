@@ -35,7 +35,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError
 
-from api import create_app
+from model.Server import create_app
 
 ROOT = Path(__file__).resolve().parent
 STATIC_DIR = ROOT/ "static"
@@ -208,7 +208,7 @@ def main() -> None:
         print(f"[server] 前端页面: http://{host}:{port}/{DEFAULT_PAGE}", flush=True)
     print(f"[server] 静态目录: {STATIC_DIR}", flush=True)
 
-    target = "server:make_app"
+    target = "app:make_app"
     if use_reload:
         uvicorn.run(target, factory=True, host=host, port=port, reload=True)
     else:

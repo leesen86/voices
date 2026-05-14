@@ -37,6 +37,9 @@
     }
     header > div:first-child {
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
     }
     header h1 { font-size: 1.05rem; margin: 0; font-weight: 600; }
     header .header-right {
@@ -69,6 +72,47 @@
     }
     header .header-github:hover { border-color: var(--accent); color: var(--accent); }
     header .header-github svg { flex-shrink: 0; }
+    header .model-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex-shrink: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    header .model-picker select {
+      min-width: 9rem;
+      max-width: 14rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.25rem 0.45rem;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+    header .model-status-badge {
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      cursor: default;
+      user-select: none;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    header .model-status-badge--stopped { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+    header .model-status-badge--starting { background: #eff6ff; color: #2563eb; border-color: #93c5fd; animation: status-pulse 1.2s ease-in-out infinite; }
+    header .model-status-badge--started  { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+    header .model-status-badge--switching { background: #fffbeb; color: #d97706; border-color: #fcd34d; animation: status-pulse 0.8s ease-in-out infinite; }
+    header .model-status-badge--stopping { background: #fef2f2; color: #dc2626; border-color: #fca5a5; animation: status-pulse 0.8s ease-in-out infinite; }
+    @keyframes status-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
     header code { background: #eef2f8; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
     main { flex: 1; display: flex; flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem 1rem; max-width: 120rem; margin: 0 auto; width: 100%; }
     section.panel {
@@ -1316,6 +1360,13 @@
   <header>
     <div>
       <h1>配音工作台</h1>
+      <label class="model-picker" title="切换后端当前加载的 TTS 模型；切换时会释放旧模型">
+        <span>模型</span>
+        <select id="modelSelect" disabled>
+          <option value="">加载中…</option>
+        </select>
+      </label>
+      <span class="model-status-badge model-status-badge--stopped" id="modelStatusBadge">已停止</span>
     </div>
     <div class="header-right">
       <div class="sub">
@@ -1714,6 +1765,7 @@
       return "http://127.0.0.1:8770";
     })();
     let sampleRate = 48000;
+    let activeModelId = "";
     let playCtx = null;
 
     /** @type {{ id: string, name: string, ref: string, refLocalBuffer?: AudioBuffer | null, refLocalName?: string }[]} */
@@ -7314,13 +7366,100 @@
       });
     });
 
-    fetch(API + "/api/health")
-      .then((r) => r.json())
-      .then((j) => {
+    function setModelStatus(state) {
+      const badge = document.getElementById("modelStatusBadge");
+      if (!badge) return;
+      const map = {
+        starting:  "启动中",
+        started:   "已启动",
+        switching: "切换中",
+        stopping:  "停止中",
+        stopped:   "已停止",
+      };
+      const label = map[state] || state;
+      badge.textContent = label;
+      badge.className = "model-status-badge model-status-badge--" + state;
+    }
+
+    async function refreshModelSelect() {
+      const sel = document.getElementById("modelSelect");
+      if (!sel) return;
+      setModelStatus("starting");
+      const res = await fetch(API + "/api/models");
+      if (!res.ok) throw new Error(await res.text());
+      const j = await res.json();
+      const models = Array.isArray(j.models) ? j.models : [];
+      sel.innerHTML = "";
+      if (!models.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "未发现模型";
+        sel.appendChild(opt);
+        sel.disabled = true;
+        setModelStatus("stopped");
+        return;
+      }
+      for (const m of models) {
+        const opt = document.createElement("option");
+        opt.value = m.id || "";
+        opt.textContent = m.name || m.id || m.path || "模型";
+        sel.appendChild(opt);
+      }
+      activeModelId = j.active || j.model || "";
+      sel.value = activeModelId;
+      sel.disabled = false;
+      sampleRate = j.sample_rate || sampleRate;
+      setModelStatus("started");
+      setStatus("服务就绪 · 模型=" + (activeModelId || "?") + " · sample_rate=" + sampleRate);
+    }
+
+    async function selectBackendModel(nextModelId) {
+      const sel = document.getElementById("modelSelect");
+      if (!sel || !nextModelId || nextModelId === activeModelId) return;
+      const prev = activeModelId;
+      sel.disabled = true;
+      setModelStatus("switching");
+      setStatus("模型切换中：" + nextModelId + " …");
+      try {
+        const res = await fetch(API + "/api/models/select", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: nextModelId }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const j = await res.json();
+        activeModelId = j.active || j.model || nextModelId;
         sampleRate = j.sample_rate || sampleRate;
-        setStatus("服务就绪 · sample_rate=" + sampleRate + " · " + (j.model || ""));
-      })
-      .catch(() => setStatus("无法连接服务：请先运行 python dubbing_server.py"));
+        await refreshModelSelect();
+        setStatus("已切换模型：" + activeModelId + " · sample_rate=" + sampleRate);
+      } catch (err) {
+        sel.value = prev;
+        setModelStatus("started");
+        setStatus("模型切换失败：" + (err && err.message ? err.message : String(err)));
+      } finally {
+        sel.disabled = false;
+      }
+    }
+
+    document.getElementById("modelSelect")?.addEventListener("change", (e) => {
+      selectBackendModel(e.target.value);
+    });
+
+    refreshModelSelect()
+      .catch(() => {
+        fetch(API + "/api/health")
+          .then((r) => r.json())
+          .then((j) => {
+            sampleRate = j.sample_rate || sampleRate;
+            activeModelId = j.active || j.model || "";
+            setModelStatus("started");
+            setStatus("服务就绪 · sample_rate=" + sampleRate + " · " + activeModelId);
+          })
+          .catch(() => {
+            setModelStatus("stopped");
+            setStatus("无法连接服务：请先运行 python server.py");
+          });
+      });
 
     window.addEventListener("keydown", (e) => {
       const t = e.target;

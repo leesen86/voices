@@ -79,7 +79,7 @@
 ```powershell
 # 1) 下载模型（首次）
 pip install -U "huggingface_hub[cli]"
-hf download openbmb/VoxCPM2 --local-dir ./model
+hf download openbmb/VoxCPM2 --local-dir ./model/VoxCPM2
 
 # 2) 安装依赖
 pip install -r requirements.txt
@@ -105,6 +105,7 @@ python server.py
 - **监听地址**：**`VOXCPM_HOST`**，默认 `127.0.0.1`。  
 - **额外音频搜索目录**：**`VOXCPM_AUDIO_SEARCH_DIRS`**（Windows 用分号、Unix 用冒号分隔），供按文件名解析路径。  
 - **热重载**：**`VOXCPM_RELOAD=1`** 时 uvicorn 热重载（会反复加载模型，开发推理时慎用）。  
+- **模型目录**：默认扫描项目下 **`model/`** 的一级子目录（如 `model/VoxCPM2`、`model/OmniVoice`），页面顶部可选择当前模型；切换时服务端会释放旧模型。  
 - 模型路径、降噪器、缓存目录等仍以 **`api.py` / 服务端说明** 为准（如 **`VOXCPM_MODEL`**、**`VOXCPM_TTS_CACHE_DIR`**）。  
 
 若静态页与 API 不在同源端口，可在页面 URL 增加 **`?api=http://127.0.0.1:8770`**（按实际 API 根地址填写）以指向配音服务。
@@ -116,7 +117,7 @@ python server.py
 ### 缓存机制（重点）
 
 - 缓存目录默认在项目下 **`tts_cache/`**（可通过服务端环境变量调整）。  
-- 文件名一般为 **`md5(角色路径 + 台词 + cfg + 步数)`** 等形式（与生成参数一致才命中）。  
+- 文件名一般为 **`md5(模型 + 角色路径 + 台词 + cfg + 步数)`** 等形式（与生成参数一致才命中）。  
 - **同一参考路径、台词与参数**会命中缓存；更换参考或文本会自动重新生成，避免串音。  
 
 ### 一体化服务在做什么
