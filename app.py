@@ -7,11 +7,11 @@ VoxCPM2 配音工作台 · 单进程一体化服务。
   3) web/static/dubbing_workbench.html —— 前端页面（同源直连，无 CORS）
 
 启动：
-  python server.py              # 默认：API + 静态前端（与原先一致）
-  python server.py all          # 同上
-  python server.py service      # 仅 API（create_app，便于单独调试推理 / HTTP 接口）
-  python server.py web          # 仅静态页与 /resolve_name（不加载 VoxCPM，便于调前端）
-  python server.py web 8771     # 同上，监听端口 8771（第二参数为可选端口，适用 all / service / web）
+  python app.py              # 默认：API + 静态前端（与原先一致）
+  python app.py all          # 同上
+  python app.py service      # 仅 API（create_app，便于单独调试推理 / HTTP 接口）
+  python app.py web          # 仅静态页与 /resolve_name（不加载 VoxCPM，便于调前端）
+  python app.py web 8771     # 同上，监听端口 8771（第二参数为可选端口，适用 all / service / web）
 
   浏览器：http://127.0.0.1:8770/  → webui.html（仅 all/web 模式有意义；若自定义端口则换对应端口）
 
@@ -178,7 +178,7 @@ def main() -> None:
         type=int,
         default=None,
         metavar="PORT",
-        help="监听端口（可选，1–65535；指定后覆盖环境变量中的端口，例如：python server.py web 8771）",
+        help="监听端口（可选，1–65535；指定后覆盖环境变量中的端口，例如：python app.py web 8771）",
     )
     args = parser.parse_args()
     run_mode = args.mode

@@ -1113,8 +1113,8 @@
       height: min(92vh, 580px);
       min-width: 240px;
       min-height: 200px;
-      max-width: min(96vw, 960px);
-      max-height: min(92vh, 900px);
+      max-width: none;
+      max-height: none;
       display: flex;
       flex-direction: column;
       background: #fff;
@@ -1518,7 +1518,7 @@
         </div>
         <div style="flex:0 0 auto;">
           <label>时间轴长度（秒）</label><br />
-          <input type="number" id="durSec" value="45" min="10" max="600" step="5" style="width:5rem;" />
+          <input type="number" id="durSec" value="45" min="10" step="5" style="width:5rem;" />
         </div>
         <button type="button" id="btnFit">按片段自动延长轴长</button>
       </div>
@@ -3295,7 +3295,7 @@
         const durEl = document.getElementById("durSec");
         const ppsEl = document.getElementById("pps");
         if (data.durSecValue != null && durEl) {
-          const d = Math.min(600, Math.max(10, Math.round(Number(data.durSecValue))));
+          const d = Math.max(10, Math.round(Number(data.durSecValue)));
           durEl.value = String(d);
         }
         if (data.pixelsPerSec != null && ppsEl && Number.isFinite(Number(data.pixelsPerSec))) {
@@ -4291,13 +4291,12 @@
       return Math.max(0, (x - origin) / pixelsPerSec);
     }
 
-    /** 拖黄线/红线顶到右端或换算时间超出当前轴长时，加长「总时长」输入（步进至少 +30s，上限 600） */
+    /** 拖黄线/红线顶到右端或换算时间超出当前轴长时，加长「总时长」输入（步进至少 +30s） */
     function maybeExtendTimelineDurationWhileDraggingHead(clientX, tRawSec, bumpGate) {
       const durEl = document.getElementById("durSec");
       const sc = document.getElementById("timelineScroll");
       if (!durEl || !sc) return false;
-      const cur = Math.max(10, Math.min(600, parseFloat(durEl.value) || 45));
-      if (cur >= 600) return false;
+      const cur = Math.max(10, parseFloat(durEl.value) || 45);
       const r = sc.getBoundingClientRect();
       const maxScroll = Math.max(0, sc.scrollWidth - sc.clientWidth);
       const atRightScroll = maxScroll <= 1 || sc.scrollLeft >= maxScroll - 2;
@@ -4307,7 +4306,7 @@
       if (!pastAxis && !pinAtEndDrag) return false;
       const now = performance.now();
       if (bumpGate && bumpGate.last > 0 && now - bumpGate.last < 160) return false;
-      const next = Math.min(600, Math.max(cur + 30, Math.ceil(Math.max(tRawSec, cur) + 2)));
+      const next = Math.max(cur + 30, Math.ceil(Math.max(tRawSec, cur) + 2));
       if (next <= cur + 0.5) return false;
       durEl.value = String(next);
       bumpGate.last = now;
@@ -5670,8 +5669,8 @@
         const pad = 8;
         const left = panel.offsetLeft;
         const top = panel.offsetTop;
-        nw = Math.max(MIN_FLOAT_W, Math.min(window.innerWidth - left - pad, nw));
-        nh = Math.max(MIN_FLOAT_H, Math.min(window.innerHeight - top - pad, nh));
+        nw = Math.max(MIN_FLOAT_W, nw);
+        nh = Math.max(MIN_FLOAT_H, nh);
         panel.style.width = nw + "px";
         panel.style.height = nh + "px";
         panel.classList.add("sync-video-float--sized");
@@ -5906,7 +5905,7 @@
       const target = Math.ceil(maxClipEnd + marginSec);
       if (maxClipEnd <= 0) return;
       if (target <= axisEndSec + 0.05) return;
-      const next = Math.min(600, target);
+      const next = target;
       const durEl = document.getElementById("durSec");
       if (!durEl) return;
       const nextStr = String(next);
@@ -6593,7 +6592,7 @@
       for (const c of clips) {
         end = Math.max(end, clipTimelineLeftSec(c) + clipTimelinePlayDur(c) + 3);
       }
-      document.getElementById("durSec").value = String(Math.min(600, Math.ceil(end)));
+      document.getElementById("durSec").value = String(Math.ceil(end));
       renderTimeline();
     });
 
